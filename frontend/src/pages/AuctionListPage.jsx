@@ -1,0 +1,233 @@
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../lib/api';
+import useAuctionStore from '../store/auctionStore';
+import CountdownTimer from '../components/auction/CountdownTimer';
+
+const AuctionListPage = () => {
+  const { rfqs, setRfqs } = useAuctionStore();
+
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
+
+  const { user, logout } = useAuctionStore();
+
+  useEffect(() => {
+    const fetchRfqs = async () => {
+      try {
+        const res = await api.get('/rfqs');
+        setRfqs(res.data);
+      } catch (err) {
+        if (err.response?.status === 401) logout();
+        console.error(err);
+      }
+    };
+    fetchRfqs();
+  }, [setRfqs, logout]);
+
+  const handleCreateSuccess = () => {
+    setShowCreateModal(false);
+    // Re-fetch list
+    api.get('/rfqs').then(res => setRfqs(res.data));
+  };
+
+  return (
+    <div className="p-8">
+      <header className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary">
+            {user?.role === 'BUYER' ? 'Buyer Control Center' : 'Supplier Marketplace'}
+          </h1>
+          <p className="text-text-muted font-sans">
+            Logged in as <span className="text-accent-blue font-bold">{user?.name}</span> ({user?.role}) 
+            at <span className="text-white italic">{user?.company}</span>
+          </p>
+        </div>
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={logout} 
+            className="text-text-muted hover:text-white transition-all duration-300 text-sm font-bold uppercase tracking-wider hover:bg-white/5 px-4 py-2 rounded-lg active:scale-95"
+          >
+            Logout
+          </button>
+          {user?.role === 'BUYER' && (
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="bg-accent-blue hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 flex items-center"
+            >
+              <span className="mr-2 text-xl leading-none">+</span>
+              Create New RFQ
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className="bg-bg-card border border-border-color rounded-lg overflow-hidden shadow-xl">
+        {/* ... table content remains same ... */}
+        <table className="w-full text-left">
+          <thead className="bg-bg-elevated text-text-muted text-xs uppercase tracking-wider font-bold">
+            <tr>
+              <th className="px-6 py-4">RFQ Details</th>
+              <th className="px-6 py-4">Auction Status</th>
+              <th className="px-6 py-4">Bid Close Time</th>
+              <th className="px-6 py-4">Current L1</th>
+              <th className="px-6 py-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-color">
+            {rfqs.map((rfq) => (
+              <tr key={rfq.id} className="hover:bg-white/5 transition-colors group">
+                <td className="px-6 py-4">
+                  <div className="font-bold text-text-primary group-hover:text-accent-blue transition-colors font-syne">
+                    {rfq.name}
+                  </div>
+                  <div className="text-[10px] text-text-muted font-mono uppercase tracking-tight">{rfq.referenceId}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
+                    rfq.status === 'ACTIVE' ? 'bg-accent-green/10 text-accent-green border border-accent-green/20' :
+                    rfq.status === 'CLOSED' || rfq.status === 'FORCE_CLOSED' ? 'bg-text-muted/10 text-text-muted border border-text-muted/20' :
+                    'bg-accent-red/10 text-accent-red border border-accent-red/20'
+                  }`}>
+                    {rfq.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-mono tracking-tighter">
+                    {rfq.status === 'ACTIVE' ? (
+                      <span className="text-accent-amber font-bold">
+                         {new Date(rfq.bidCloseTime).toLocaleTimeString()}
+                      </span>
+                    ) : (
+                      <span className="text-text-muted opacity-60">
+                         {new Date(rfq.bidCloseTime).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-accent-green font-mono font-bold text-lg">
+                  {rfq.bids && rfq.bids.length > 0 
+                    ? `₹${new Intl.NumberFormat('en-IN').format(Math.min(...rfq.bids.map(b => b.totalCharges)))}`
+                    : '—'}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <Link 
+                    to={`/auctions/${rfq.id}`}
+                    className="text-accent-blue hover:text-white transition-colors font-bold text-sm"
+                  >
+                    View Details →
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {rfqs.length === 0 && (
+              <tr>
+                <td colSpan="5" className="px-6 py-20 text-center text-text-muted italic">No auctions found. Create one to get started!</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showCreateModal && <CreateRfqModal onClose={() => setShowCreateModal(false)} onSuccess={handleCreateSuccess} />}
+    </div>
+  );
+};
+
+const CreateRfqModal = ({ onClose, onSuccess }) => {
+  const [formData, setFormData] = React.useState({
+    name: '',
+    referenceId: `RFQ-${Date.now()}`,
+    pickupDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+    bidCloseTime: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+    forcedCloseTime: new Date(Date.now() + 7200000).toISOString().slice(0, 16),
+    triggerWindowX: 10,
+    extensionDurationY: 5,
+    triggerType: 'L1_RANK_CHANGE'
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/rfqs', {
+        ...formData,
+        bidStartTime: new Date().toISOString(),
+        auctionConfig: {
+          triggerWindowX: parseInt(formData.triggerWindowX),
+          extensionDurationY: parseInt(formData.extensionDurationY),
+          triggerType: formData.triggerType
+        }
+      });
+      onSuccess();
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-bg-primary/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+       <div className="bg-bg-card border border-border-color rounded-xl w-full max-w-2xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-bold mb-6 font-syne">Create New Auction RFQ</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+             <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2">
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Auction Title</label>
+                   <input required className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white font-bold" 
+                    value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Export Shipment from Nhava Sheva" />
+                </div>
+                <div>
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Pickup Date</label>
+                   <input required type="date" className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white" 
+                    value={formData.pickupDate} onChange={e => setFormData({...formData, pickupDate: e.target.value})} />
+                </div>
+                <div>
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">RFQ Ref. ID</label>
+                   <input required className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white font-mono" 
+                    value={formData.referenceId} onChange={e => setFormData({...formData, referenceId: e.target.value})} />
+                </div>
+                <div>
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Bidding Close Time</label>
+                   <input required type="datetime-local" className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white" 
+                    value={formData.bidCloseTime} onChange={e => setFormData({...formData, bidCloseTime: e.target.value})} />
+                </div>
+                <div>
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Hard Cap (Forced Close)</label>
+                   <input required type="datetime-local" className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white" 
+                    value={formData.forcedCloseTime} onChange={e => setFormData({...formData, forcedCloseTime: e.target.value})} />
+                </div>
+             </div>
+
+             <div className="bg-bg-elevated/50 p-6 rounded-lg border border-border-color">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] mb-4 text-accent-blue">Auction Extension Configuration</h3>
+                <div className="grid grid-cols-3 gap-4">
+                   <div>
+                      <label className="block text-[9px] uppercase font-bold text-text-muted mb-1">Trigger Window (Mins)</label>
+                      <input type="number" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
+                        value={formData.triggerWindowX} onChange={e => setFormData({...formData, triggerWindowX: e.target.value})} />
+                   </div>
+                   <div>
+                      <label className="block text-[9px] uppercase font-bold text-text-muted mb-1">Extension (Mins)</label>
+                      <input type="number" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
+                        value={formData.extensionDurationY} onChange={e => setFormData({...formData, extensionDurationY: e.target.value})} />
+                   </div>
+                   <div>
+                      <label className="block text-[9px] uppercase font-bold text-text-muted mb-1">Trigger Event</label>
+                      <select className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white text-xs"
+                        value={formData.triggerType} onChange={e => setFormData({...formData, triggerType: e.target.value})}>
+                         <option value="L1_RANK_CHANGE">L1 Rank Change</option>
+                         <option value="BID_RECEIVED">Any Bid Received</option>
+                      </select>
+                   </div>
+                </div>
+             </div>
+
+             <div className="flex gap-4 pt-4">
+                <button type="button" onClick={onClose} className="flex-1 py-4 border border-border-color hover:bg-bg-elevated rounded-lg font-bold transition-all text-text-muted">Cancel</button>
+                <button type="submit" className="flex-1 py-4 bg-accent-blue text-white rounded-lg font-bold hover:shadow-xl hover:shadow-accent-blue/30 transition-all">Launch Auction RFQ</button>
+             </div>
+          </form>
+       </div>
+    </div>
+  );
+};
+
+export default AuctionListPage;
