@@ -31,102 +31,152 @@ const AuctionListPage = () => {
   };
 
   return (
-    <div className="p-8">
-      <header className="flex justify-between items-center mb-8">
+    <div className="container py-8">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">
+          <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
             {user?.role === 'BUYER' ? 'Buyer Control Center' : 'Supplier Marketplace'}
           </h1>
-          <p className="text-text-muted font-sans">
-            Logged in as <span className="text-accent-blue font-bold">{user?.name}</span> ({user?.role}) 
+          <p className="text-text-muted font-sans text-sm">
+            Logged in as <span className="text-accent-blue font-bold">{user?.name}</span>
+            <span className="hidden sm:inline"> ({user?.role}) </span> 
             at <span className="text-white italic">{user?.company}</span>
           </p>
         </div>
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-4 items-center w-full md:w-auto">
           <button 
             onClick={logout} 
-            className="text-text-muted hover:text-white transition-all duration-300 text-sm font-bold uppercase tracking-wider hover:bg-white/5 px-4 py-2 rounded-lg active:scale-95"
+            className="text-text-muted hover:text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 px-4 py-2 rounded-lg active:scale-95"
           >
             Logout
           </button>
           {user?.role === 'BUYER' && (
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="bg-accent-blue hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 flex items-center"
+              className="flex-1 md:flex-none justify-center bg-accent-blue hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 flex items-center text-sm md:text-base"
             >
               <span className="mr-2 text-xl leading-none">+</span>
-              Create New RFQ
+              Create RFQ
             </button>
           )}
         </div>
       </header>
 
-      <div className="bg-bg-card border border-border-color rounded-lg overflow-hidden shadow-xl">
-        {/* ... table content remains same ... */}
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-bg-card border border-border-color rounded-xl overflow-hidden shadow-2xl">
         <table className="w-full text-left">
-          <thead className="bg-bg-elevated text-text-muted text-xs uppercase tracking-wider font-bold">
+          <thead className="bg-bg-elevated text-text-muted text-[10px] uppercase tracking-widest font-black">
             <tr>
               <th className="px-6 py-4">RFQ Details</th>
-              <th className="px-6 py-4">Auction Status</th>
-              <th className="px-6 py-4">Bid Close Time</th>
-              <th className="px-6 py-4">Current L1</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Bid Close</th>
+              <th className="px-6 py-4">L1 Price</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-color">
             {rfqs.map((rfq) => (
-              <tr key={rfq.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-text-primary group-hover:text-accent-blue transition-colors font-syne">
+              <tr key={rfq.id} className="hover:bg-white/[0.02] transition-colors group">
+                <td className="px-6 py-5">
+                  <div className="font-bold text-text-primary group-hover:text-accent-blue transition-colors font-syne text-lg">
                     {rfq.name}
                   </div>
-                  <div className="text-[10px] text-text-muted font-mono uppercase tracking-tight">{rfq.referenceId}</div>
+                  <div className="text-[10px] text-text-muted font-mono uppercase tracking-widest">{rfq.referenceId}</div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
-                    rfq.status === 'ACTIVE' ? 'bg-accent-green/10 text-accent-green border border-accent-green/20' :
-                    rfq.status === 'CLOSED' || rfq.status === 'FORCE_CLOSED' ? 'bg-text-muted/10 text-text-muted border border-text-muted/20' :
-                    'bg-accent-red/10 text-accent-red border border-accent-red/20'
+                <td className="px-6 py-5">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border border-white/5 ${
+                    rfq.status === 'ACTIVE' ? 'bg-accent-green/10 text-accent-green border-accent-green/20' :
+                    rfq.status === 'CLOSED' || rfq.status === 'FORCE_CLOSED' ? 'bg-text-muted/10 text-text-muted' :
+                    'bg-accent-red/10 text-accent-red'
                   }`}>
                     {rfq.status}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-mono tracking-tighter">
+                <td className="px-6 py-5">
+                  <div className="text-sm font-mono flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${rfq.status === 'ACTIVE' ? 'bg-accent-amber animate-pulse' : 'bg-text-muted'}`} />
                     {rfq.status === 'ACTIVE' ? (
                       <span className="text-accent-amber font-bold">
-                         {new Date(rfq.bidCloseTime).toLocaleTimeString()}
+                         {new Date(rfq.bidCloseTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     ) : (
                       <span className="text-text-muted opacity-60">
-                         {new Date(rfq.bidCloseTime).toLocaleString()}
+                         {new Date(rfq.bidCloseTime).toLocaleDateString()}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-accent-green font-mono font-bold text-lg">
+                <td className="px-6 py-5 text-accent-green font-mono font-bold text-xl">
                   {rfq.bids && rfq.bids.length > 0 
                     ? `₹${new Intl.NumberFormat('en-IN').format(Math.min(...rfq.bids.map(b => b.totalCharges)))}`
                     : '—'}
                 </td>
-                <td className="px-6 py-4 text-right">
+                <td className="px-6 py-5 text-right">
                   <Link 
                     to={`/auctions/${rfq.id}`}
-                    className="text-accent-blue hover:text-white transition-colors font-bold text-sm"
+                    className="inline-flex items-center px-4 py-2 rounded-lg bg-bg-elevated hover:bg-accent-blue hover:text-white transition-all duration-300 font-bold text-xs uppercase tracking-widest border border-white/5"
                   >
-                    View Details →
+                    Details
                   </Link>
                 </td>
               </tr>
             ))}
-            {rfqs.length === 0 && (
-              <tr>
-                <td colSpan="5" className="px-6 py-20 text-center text-text-muted italic">No auctions found. Create one to get started!</td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {rfqs.map((rfq) => (
+          <div key={rfq.id} className="bg-bg-card border border-border-color rounded-xl p-6 shadow-xl relative overflow-hidden group active:scale-[0.98] transition-all">
+            <div className="flex justify-between items-start mb-4">
+               <div>
+                  <h3 className="font-bold text-xl font-syne text-text-primary group-hover:text-accent-blue transition-colors leading-tight mb-1">
+                    {rfq.name}
+                  </h3>
+                  <p className="text-[10px] text-text-muted font-mono uppercase tracking-widest">{rfq.referenceId}</p>
+               </div>
+               <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border border-white/5 ${
+                  rfq.status === 'ACTIVE' ? 'bg-accent-green/10 text-accent-green border-accent-green/20' :
+                  rfq.status === 'CLOSED' || rfq.status === 'FORCE_CLOSED' ? 'bg-text-muted/10 text-text-muted' :
+                  'bg-accent-red/10 text-accent-red'
+               }`}>
+                  {rfq.status}
+               </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+               <div className="bg-bg-elevated/50 p-3 rounded-lg border border-white/5">
+                  <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">L1 Price</p>
+                  <p className="text-xl font-mono font-bold text-accent-green">
+                    {rfq.bids && rfq.bids.length > 0 
+                      ? `₹${new Intl.NumberFormat('en-IN').format(Math.min(...rfq.bids.map(b => b.totalCharges)))}`
+                      : '—'}
+                  </p>
+               </div>
+               <div className="bg-bg-elevated/50 p-3 rounded-lg border border-white/5">
+                  <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">Closing</p>
+                  <p className="text-sm font-mono font-bold text-accent-amber">
+                    {new Date(rfq.bidCloseTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+               </div>
+            </div>
+
+            <Link 
+              to={`/auctions/${rfq.id}`}
+              className="flex items-center justify-center w-full py-4 rounded-xl bg-accent-blue text-white font-bold uppercase tracking-widest text-sm shadow-lg shadow-accent-blue/20"
+            >
+              View Auction Center
+            </Link>
+          </div>
+        ))}
+      </div>
+
+      {rfqs.length === 0 && (
+        <div className="py-20 text-center text-text-muted italic bg-bg-card border border-border-color rounded-xl border-dashed">
+          No auctions found. Create one to get started!
+        </div>
+      )}
 
       {showCreateModal && <CreateRfqModal onClose={() => setShowCreateModal(false)} onSuccess={handleCreateSuccess} />}
     </div>

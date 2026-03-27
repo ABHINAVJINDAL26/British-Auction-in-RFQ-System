@@ -13,23 +13,27 @@ const SignupPage = () => {
     company: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const setAuth = useAuctionStore((state) => state.setAuth);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const res = await api.post('/auth/signup', formData);
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed');
+    } finally {
+      setLoading(false); // Set loading to false after request completes
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-primary p-4">
-      <div className="bg-bg-card border border-border-color p-8 rounded-xl w-full max-w-md shadow-2xl">
+    <div className="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-bg-card border border-border-color rounded-2xl shadow-2xl p-6 md:p-10 animate-fade-in">
         <h1 className="text-3xl font-bold font-syne mb-2 text-center">Create Account</h1>
         <p className="text-text-muted text-center mb-8">Join the British Auction Network</p>
         
@@ -99,8 +103,12 @@ const SignupPage = () => {
             </div>
           </div>
           
-          <button type="submit" className="w-full py-4 bg-accent-blue text-white rounded-lg font-bold shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 mt-4">
-            Sign Up As {formData.role}
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-accent-blue hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.2)] active:scale-95 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Sign Up'}
           </button>
         </form>
         

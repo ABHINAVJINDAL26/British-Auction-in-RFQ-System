@@ -31,31 +31,31 @@ const AuctionDetailPage = () => {
   if (loading || !currentRfq) return <div className="p-8 text-center text-text-muted">Loading auction data...</div>;
 
   return (
-    <div className="p-8 min-h-screen bg-bg-primary text-text-primary animate-fade-in">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 sm:p-8 min-h-screen bg-bg-primary text-text-primary animate-fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <Link to="/" className="flex items-center text-text-muted hover:text-accent-blue transition-all duration-300 font-bold group">
           <div className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center mr-3 group-hover:bg-accent-blue/10 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           </div>
           Dashboard
         </Link>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
            <div className="text-right">
-              <p className="text-white font-bold leading-none mb-1">{user?.name}</p>
-              <p className="text-text-muted text-[10px] uppercase font-black tracking-widest">{user?.role} • {user?.company}</p>
+              <p className="text-white font-bold leading-none mb-1 text-sm sm:text-base">{user?.name}</p>
+              <p className="text-text-muted text-[8px] sm:text-[10px] uppercase font-black tracking-widest">{user?.role} • {user?.company}</p>
            </div>
            <button 
             onClick={logout} 
-            className="bg-bg-elevated hover:bg-bg-primary border border-white/5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:border-accent-red/30 hover:text-accent-red transition-all duration-300 active:scale-95"
+            className="bg-bg-elevated hover:bg-bg-primary border border-white/5 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:border-accent-red/30 hover:text-accent-red transition-all duration-300 active:scale-95 whitespace-nowrap"
           >
             Logout
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         {/* Left Panel - Rankings */}
-        <div className="col-span-12 lg:col-span-7 bg-bg-card border border-border-color rounded-xl overflow-hidden self-start">
+        <div className="col-span-1 lg:col-span-7 bg-bg-card border border-border-color rounded-xl overflow-hidden self-start">
           <div className="px-6 py-4 border-b border-border-color bg-bg-elevated flex justify-between items-center">
              <h2 className="text-xl font-bold flex items-center">
                <Trophy className="w-5 h-5 mr-2 text-accent-green" /> Live Rankings
@@ -108,7 +108,7 @@ const AuctionDetailPage = () => {
         </div>
 
         {/* Center Panel - Control Center */}
-        <div className="col-span-12 lg:col-span-5 flex flex-col gap-6">
+        <div className="col-span-1 lg:col-span-5 flex flex-col gap-6">
            <div className="bg-bg-card border border-border-color rounded-xl p-8 flex flex-col items-center text-center">
               <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 bg-opacity-20 ${
                 currentRfq.status === 'ACTIVE' ? 'bg-accent-green text-accent-green' : 'bg-accent-red text-accent-red'
@@ -140,9 +140,9 @@ const AuctionDetailPage = () => {
                   }}
                 ></div>
               </div>
-              <p className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-10 w-full text-left flex justify-between px-1">
+              <div className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-10 w-full flex flex-col sm:flex-row justify-between gap-2">
                 <span>Hard Cap: {new Date(currentRfq.forcedCloseTime).toLocaleTimeString()}</span>
-                <span className="text-accent-blue italic tracking-normal">
+                <span className="text-accent-blue italic tracking-normal text-right">
                   {(() => {
                     const diff = new Date(currentRfq.forcedCloseTime) - new Date();
                     if (diff <= 0) return 'HARD CAP REACHED';
@@ -150,7 +150,7 @@ const AuctionDetailPage = () => {
                     return `${mins} min to Forced Close`;
                   })()}
                 </span>
-              </p>
+              </div>
 
               <button 
                 onClick={() => setShowBidForm(true)}

@@ -8,23 +8,28 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const setAuth = useAuctionStore((state) => state.setAuth);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const res = await api.post('/auth/login', { email, password });
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
+   
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-primary p-4">
-      <div className="bg-bg-card border border-border-color p-8 rounded-xl w-full max-w-md shadow-2xl">
+    <div className="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-bg-card border border-border-color rounded-2xl shadow-2xl p-6 md:p-10 animate-fade-in">
         <h1 className="text-3xl font-bold font-syne mb-2 text-center">Welcome Back</h1>
         <p className="text-text-muted text-center mb-8">Access the British Auction Control Center</p>
         
@@ -61,8 +66,12 @@ const LoginPage = () => {
             </div>
           </div>
           
-          <button type="submit" className="w-full py-4 bg-accent-blue text-white rounded-lg font-bold shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 transition-all duration-300">
-            Login to Workspace
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-4 bg-accent-blue text-white rounded-lg font-bold shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 disabled:opacity-50"
+          >
+            {loading ? 'Authenticating...' : 'Login to Workspace'}
           </button>
         </form>
         
