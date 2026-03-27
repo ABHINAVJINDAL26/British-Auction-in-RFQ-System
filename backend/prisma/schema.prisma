@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   // BUYER or SUPPLIER
+  company      String?
+  carrierName  String?
+  rfqs         RFQ[]    @relation("BuyerRFQs")
+  bids         Bid[]
+  events       AuctionEvent[] @relation("ActorEvents")
+  createdAt    DateTime @default(now())
+}
+
+model RFQ {
+  id                 String         @id @default(uuid())
+  referenceId        String         @unique // e.g. RFQ-2024-001
+  name               String
+  buyerId            String
+  buyer              User           @relation("BuyerRFQs", fields: [buyerId], references: [id])
+  pickupDate         DateTime
+  bidStartTime       DateTime
+  bidCloseTime       DateTime       // current close (can extend)
+  forcedCloseTime    DateTime       // hard cap, never changes
+  originalCloseTime  DateTime       // original close before extensions
+  status             String         @default("DRAFT") // DRAFT | ACTIVE | CLOSED | FORCE_CLOSED
+  auctionConfig      AuctionConfig?
+  bids               Bid[]
+  events             AuctionEvent[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model AuctionConfig {
+  id                 String   @id @default(uuid())
+  rfqId              String   @unique
+  rfq                RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  triggerWindowX     Int      // minutes before close to monitor
+  extensionDurationY Int      // minutes to extend when triggered
+  triggerType        String   // BID_RECEIVED | ANY_RANK_CHANGE | L1_RANK_CHANGE
+  createdAt          DateTime @default(now())
+}
+
+model Bid {
+  id                 String   @id @default(uuid())
+  rfqId              String
+  rfq                RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId         String
+  supplier           User     @relation(fields: [supplierId], references: [id])
+  carrierName        String
+  freightCharges     Float
+  originCharges      Float    @default(0)
+  destinationCharges Float    @default(0)
+  totalCharges       Float    // Manually calculate on submission
+  transitTime        Int      // in days
+  quoteValidity      DateTime
+  rank               Int?     // L1=1, L2=2, etc. (computed)
+  submittedAt        DateTime @default(now())
+  isLatest           Boolean  @default(true) // only latest bid per supplier
+  notes              String?
+}
+
+model AuctionEvent {
+  id           String   @id @default(uuid())
+  rfqId        String
+  rfq          RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  eventType    String   // BID_SUBMITTED | TIME_EXTENDED | AUCTION_STARTED | AUCTION_CLOSED | AUCTION_FORCE_CLOSED
+  actorId      String?
+  actor        User?          @relation("ActorEvents", fields: [actorId], references: [id])
+  description  String
+  oldCloseTime DateTime? // before extension
+  newCloseTime DateTime? // after extension
+  triggeredBy  String?   // trigger type that caused extension
+  createdAt    DateTime @default(now())
+}
