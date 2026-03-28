@@ -28,6 +28,19 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Runtime output / temp logs (auto-created by dev server)
+*.txt
+backend_err.txt
+backend_out.txt
+vite_err.txt
+vite_out.txt
+
+# SQLite dev databases (local only)
+dev.db
+dev.db-journal
+*.db
+*.db-journal
+
 # IDE / System
 .vscode/
 .idea/
