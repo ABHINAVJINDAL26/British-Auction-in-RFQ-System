@@ -37,9 +37,9 @@ const AuctionListPage = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
             {user?.role === 'BUYER' ? 'Buyer Control Center' : 'Supplier Marketplace'}
           </h1>
-          <p className="text-text-muted font-sans text-xs flex items-center gap-2 mt-1">
+          <p className="text-text-muted font-sans text-sm flex items-center gap-2 mt-2">
             Logged in as <span className="text-accent-blue font-bold tracking-tight">{user?.name}</span>
-            <span className="bg-bg-elevated px-2 py-0.5 rounded text-[10px] border border-white/5 font-black uppercase text-accent-green">
+            <span className="bg-bg-elevated px-3 py-1 rounded text-xs border border-white/5 font-black uppercase text-accent-green">
               {user?.role}
             </span> 
             at <span className="text-white italic">{user?.company}</span>
@@ -67,7 +67,7 @@ const AuctionListPage = () => {
       {/* Desktop Table View */}
       <div className="hidden md:block bg-bg-card border border-border-color rounded-xl overflow-hidden shadow-2xl">
         <table className="w-full text-left">
-          <thead className="bg-bg-elevated text-text-muted text-[10px] uppercase tracking-widest font-black">
+          <thead className="bg-bg-elevated text-text-muted text-xs uppercase tracking-widest font-black">
             <tr>
               <th className="px-6 py-4">RFQ Details</th>
               <th className="px-6 py-4">Status</th>
