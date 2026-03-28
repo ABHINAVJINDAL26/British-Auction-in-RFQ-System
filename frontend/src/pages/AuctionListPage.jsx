@@ -186,9 +186,14 @@ const AuctionListPage = () => {
 };
 
 const CreateRfqModal = ({ onClose, onSuccess }) => {
-  const defaultBidStart = new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16);
-  const defaultBidClose = new Date(Date.now() + 60 * 60000).toISOString().slice(0, 16);
-  const defaultForcedClose = new Date(Date.now() + 120 * 60000).toISOString().slice(0, 16);
+  const toLocalDateTimeInputValue = (date) => {
+    const tzOffsetMs = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  };
+
+  const defaultBidStart = toLocalDateTimeInputValue(new Date(Date.now() + 5 * 60000));
+  const defaultBidClose = toLocalDateTimeInputValue(new Date(Date.now() + 60 * 60000));
+  const defaultForcedClose = toLocalDateTimeInputValue(new Date(Date.now() + 120 * 60000));
 
   const [formData, setFormData] = React.useState({
     name: '',
@@ -217,6 +222,9 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
 
       await api.post('/rfqs', {
         ...formData,
+        bidStartTime: new Date(formData.bidStartTime).toISOString(),
+        bidCloseTime: new Date(formData.bidCloseTime).toISOString(),
+        forcedCloseTime: new Date(formData.forcedCloseTime).toISOString(),
         auctionConfig: {
           triggerWindowX: parseInt(formData.triggerWindowX),
           extensionDurationY: parseInt(formData.extensionDurationY),
