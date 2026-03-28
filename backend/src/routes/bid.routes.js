@@ -21,6 +21,9 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
       }
 
       const now = new Date();
+      if (now < new Date(rfq.bidStartTime)) {
+        throw new Error('Bidding has not started yet');
+      }
       if (now > new Date(rfq.bidCloseTime)) {
         throw new Error('Auction has closed');
       }
@@ -104,7 +107,7 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
 
     res.status(201).json(result.newBid);
   } catch (err) {
-    if (err.message === 'Auction is not active' || err.message === 'Auction has closed') {
+    if (err.message === 'Auction is not active' || err.message === 'Auction has closed' || err.message === 'Bidding has not started yet') {
       return res.status(400).json({ error: err.message });
     }
     res.status(500).json({ error: err.message });

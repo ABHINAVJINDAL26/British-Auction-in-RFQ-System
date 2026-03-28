@@ -45,23 +45,67 @@ app.use((req, res, next) => {
 // Cron Job: Check for extensions every 30 seconds
 cron.schedule('*/30 * * * * *', async () => {
   try {
-    const activeRfqs = await prisma.rFQ.findMany({
-      where: { status: 'ACTIVE' }
+    const monitoredRfqs = await prisma.rFQ.findMany({
+      where: {
+        status: { in: ['DRAFT', 'ACTIVE'] }
+      }
     });
 
-    for (const rfq of activeRfqs) {
-      await checkAndExtendAuction(rfq.id, io);
-      
-      // Auto-close if time expired
+    for (const rfq of monitoredRfqs) {
       const now = new Date();
-      if (now >= new Date(rfq.bidCloseTime)) {
-        const status = now >= new Date(rfq.forcedCloseTime) ? 'FORCE_CLOSED' : 'CLOSED';
+
+      // Auto-start at bid start time.
+      if (rfq.status === 'DRAFT' && now >= new Date(rfq.bidStartTime)) {
         await prisma.rFQ.update({
           where: { id: rfq.id },
-          data: { status }
+          data: { status: 'ACTIVE' }
         });
-        io.to(rfq.id).emit('auction:status-changed', { rfqId: rfq.id, status });
-        console.log(`Auction ${rfq.id} ${status}`);
+        await prisma.auctionEvent.create({
+          data: {
+            rfqId: rfq.id,
+            eventType: 'AUCTION_STARTED',
+            description: 'Auction started at bid start time'
+          }
+        });
+        io.to(rfq.id).emit('auction:status-changed', { rfqId: rfq.id, status: 'ACTIVE' });
+        console.log(`Auction ${rfq.id} ACTIVE`);
+        continue;
+      }
+
+      if (rfq.status !== 'ACTIVE') {
+        continue;
+      }
+
+      await checkAndExtendAuction(rfq.id, io);
+
+      // Re-fetch after extension so close checks use fresh bidCloseTime.
+      const latestRfq = await prisma.rFQ.findUnique({ where: { id: rfq.id } });
+      if (!latestRfq || latestRfq.status !== 'ACTIVE') {
+        continue;
+      }
+
+      const latestNow = new Date();
+      let nextStatus = null;
+      if (latestNow >= new Date(latestRfq.forcedCloseTime)) {
+        nextStatus = 'FORCE_CLOSED';
+      } else if (latestNow >= new Date(latestRfq.bidCloseTime)) {
+        nextStatus = 'CLOSED';
+      }
+
+      if (nextStatus) {
+        await prisma.rFQ.update({
+          where: { id: latestRfq.id },
+          data: { status: nextStatus }
+        });
+        await prisma.auctionEvent.create({
+          data: {
+            rfqId: latestRfq.id,
+            eventType: nextStatus === 'FORCE_CLOSED' ? 'AUCTION_FORCE_CLOSED' : 'AUCTION_CLOSED',
+            description: nextStatus === 'FORCE_CLOSED' ? 'Auction force closed at hard cap' : 'Auction closed at bid close time'
+          }
+        });
+        io.to(latestRfq.id).emit('auction:status-changed', { rfqId: latestRfq.id, status: nextStatus });
+        console.log(`Auction ${latestRfq.id} ${nextStatus}`);
       }
     }
   } catch (err) {

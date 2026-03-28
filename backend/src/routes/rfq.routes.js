@@ -92,17 +92,23 @@ router.post('/', roleMiddleware(['BUYER']), async (req, res) => {
   const { name, referenceId, pickupDate, bidStartTime, bidCloseTime, forcedCloseTime, auctionConfig } = req.body;
   const buyerId = req.user.id; // Get from token
   try {
+    const parsedPickupDate = parseRfqDateTime(pickupDate);
+    const parsedBidStartTime = parseRfqDateTime(bidStartTime);
+    const parsedBidCloseTime = parseRfqDateTime(bidCloseTime);
+    const parsedForcedCloseTime = parseRfqDateTime(forcedCloseTime);
+    const initialStatus = new Date() >= parsedBidStartTime ? 'ACTIVE' : 'DRAFT';
+
     const rfq = await prisma.rFQ.create({
       data: {
         name,
         referenceId,
         buyerId,
-        pickupDate: parseRfqDateTime(pickupDate),
-        bidStartTime: parseRfqDateTime(bidStartTime),
-        bidCloseTime: parseRfqDateTime(bidCloseTime),
-        forcedCloseTime: parseRfqDateTime(forcedCloseTime),
-        originalCloseTime: parseRfqDateTime(bidCloseTime),
-        status: 'ACTIVE', // Defaulting to ACTIVE for demo
+        pickupDate: parsedPickupDate,
+        bidStartTime: parsedBidStartTime,
+        bidCloseTime: parsedBidCloseTime,
+        forcedCloseTime: parsedForcedCloseTime,
+        originalCloseTime: parsedBidCloseTime,
+        status: initialStatus,
         auctionConfig: {
           create: {
             triggerWindowX: auctionConfig.triggerWindowX,

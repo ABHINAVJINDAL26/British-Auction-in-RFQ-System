@@ -82,6 +82,7 @@ const AuctionListPage = () => {
               <th className="px-6 py-4">RFQ Details</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">Bid Close</th>
+              <th className="px-6 py-4">Forced Close</th>
               <th className="px-6 py-4">L1 Price</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
@@ -89,6 +90,10 @@ const AuctionListPage = () => {
           <tbody className="divide-y divide-border-color">
             {rfqs.map((rfq) => (
               <tr key={rfq.id} className="hover:bg-white/[0.02] transition-colors group">
+                {(() => {
+                  const isExtended = new Date(rfq.bidCloseTime).getTime() > new Date(rfq.originalCloseTime).getTime();
+                  return (
+                    <>
                 <td className="px-6 py-5">
                   <div className="font-bold text-text-primary group-hover:text-accent-blue transition-colors font-syne text-lg">
                     {rfq.name}
@@ -108,8 +113,8 @@ const AuctionListPage = () => {
                   <div className="text-sm font-mono flex items-center gap-2">
                     <div className={`w-1.5 h-1.5 rounded-full ${rfq.status === 'ACTIVE' ? 'bg-accent-amber animate-pulse' : 'bg-text-muted'}`} />
                     {rfq.status === 'ACTIVE' ? (
-                      <span className="text-accent-amber font-bold">
-                         {formatISTTime(rfq.bidCloseTime)}
+                      <span className={`font-bold ${isExtended ? 'text-accent-blue' : 'text-accent-amber'}`}>
+                         {formatISTTime(rfq.bidCloseTime)} {isExtended ? '↑' : ''}
                       </span>
                     ) : (
                       <span className="text-text-muted opacity-60">
@@ -117,6 +122,11 @@ const AuctionListPage = () => {
                       </span>
                     )}
                   </div>
+                </td>
+                <td className="px-6 py-5">
+                  <span className="text-sm font-mono text-text-muted">
+                    {formatISTTime(rfq.forcedCloseTime)}
+                  </span>
                 </td>
                 <td className="px-6 py-5 text-accent-green font-mono font-bold text-xl">
                   {rfq.bids && rfq.bids.length > 0 
@@ -131,6 +141,9 @@ const AuctionListPage = () => {
                     Details
                   </Link>
                 </td>
+                    </>
+                  );
+                })()}
               </tr>
             ))}
           </tbody>
@@ -168,10 +181,15 @@ const AuctionListPage = () => {
                </div>
                <div className="bg-bg-elevated/50 p-3 rounded-lg border border-white/5">
                   <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">Closing</p>
-                  <p className="text-sm font-mono font-bold text-accent-amber">
-                    {formatISTTime(rfq.bidCloseTime)}
+                  <p className={`text-sm font-mono font-bold ${new Date(rfq.bidCloseTime).getTime() > new Date(rfq.originalCloseTime).getTime() ? 'text-accent-blue' : 'text-accent-amber'}`}>
+                    {formatISTTime(rfq.bidCloseTime)} {new Date(rfq.bidCloseTime).getTime() > new Date(rfq.originalCloseTime).getTime() ? '↑' : ''}
                   </p>
                </div>
+            </div>
+
+            <div className="mb-5 bg-bg-elevated/40 p-3 rounded-lg border border-white/5">
+              <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">Forced Close</p>
+              <p className="text-sm font-mono text-text-muted">{formatISTTime(rfq.forcedCloseTime)}</p>
             </div>
 
             <Link 
