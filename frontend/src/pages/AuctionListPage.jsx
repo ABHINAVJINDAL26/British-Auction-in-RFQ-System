@@ -14,6 +14,19 @@ const formatISTTime = (value) => {
   });
 };
 
+const formatISTDateTime = (value) => {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
+};
+
 const AuctionListPage = () => {
   const { rfqs, setRfqs } = useAuctionStore();
 
@@ -118,7 +131,7 @@ const AuctionListPage = () => {
                       </span>
                     ) : (
                       <span className="text-text-muted opacity-60">
-                         {new Date(rfq.bidCloseTime).toLocaleDateString()}
+                         {formatISTDateTime(rfq.bidCloseTime)}
                       </span>
                     )}
                   </div>

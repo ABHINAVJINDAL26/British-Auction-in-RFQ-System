@@ -57,6 +57,24 @@ const AuctionDetailPage = () => {
 
   if (loading || !currentRfq) return <div className="p-8 text-center text-text-muted">Loading auction data...</div>;
 
+  const isDraft = currentRfq.status === 'DRAFT';
+  const isActive = currentRfq.status === 'ACTIVE';
+  const timerTarget = isDraft ? currentRfq.bidStartTime : currentRfq.bidCloseTime;
+  const timerLabel = isDraft ? 'STARTS IN' : 'CLOSES IN';
+  const statusBadgeClass =
+    currentRfq.status === 'ACTIVE'
+      ? 'bg-accent-green/20 text-accent-green border border-accent-green/30'
+      : currentRfq.status === 'DRAFT'
+      ? 'bg-accent-amber/20 text-accent-amber border border-accent-amber/30'
+      : 'bg-accent-red/20 text-accent-red border border-accent-red/30';
+
+  let bidButtonLabel = 'Bidding Restricted to Suppliers';
+  if (user?.role === 'SUPPLIER') {
+    if (isDraft) bidButtonLabel = 'Auction Not Started Yet';
+    else if (!isActive) bidButtonLabel = 'Auction Closed';
+    else bidButtonLabel = 'Submit New Bid';
+  }
+
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-bg-primary text-text-primary animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -151,9 +169,7 @@ const AuctionDetailPage = () => {
         {/* Center Panel - Control Center */}
         <div className="col-span-1 lg:col-span-5 flex flex-col gap-6">
            <div className="bg-bg-card border border-border-color rounded-xl p-8 flex flex-col items-center text-center">
-              <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 bg-opacity-20 ${
-                currentRfq.status === 'ACTIVE' ? 'bg-accent-green text-accent-green' : 'bg-accent-red text-accent-red'
-              }`}>
+              <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 ${statusBadgeClass}`}>
                 {currentRfq.status}
               </span>
               <h1 className="text-2xl font-bold mb-2">{currentRfq.name}</h1>
@@ -161,9 +177,14 @@ const AuctionDetailPage = () => {
               
               <div className="mb-10 w-full">
                  <p className="text-text-muted text-sm uppercase font-black tracking-widest mb-2 flex items-center justify-center">
-                   <Clock className="w-4 h-4 mr-2" /> Closes In
+                   <Clock className="w-4 h-4 mr-2" /> {timerLabel}
                  </p>
-                 <CountdownTimer targetDate={currentRfq.bidCloseTime} />
+                 <CountdownTimer targetDate={timerTarget} />
+                 {isDraft && (
+                   <p className="mt-3 text-xs text-accent-amber font-semibold">
+                     Bidding opens at {formatDateTime(currentRfq.bidStartTime)}
+                   </p>
+                 )}
               </div>
 
               <div className="w-full bg-bg-elevated h-2 rounded-full mb-2 overflow-hidden relative border border-white/5">
@@ -195,11 +216,11 @@ const AuctionDetailPage = () => {
 
               <button 
                 onClick={() => setShowBidForm(true)}
-                disabled={currentRfq.status !== 'ACTIVE' || user?.role !== 'SUPPLIER'}
+                disabled={!isActive || user?.role !== 'SUPPLIER'}
                 className="w-full py-4 bg-accent-blue hover:bg-opacity-90 disabled:bg-text-muted disabled:bg-opacity-20 text-white rounded-lg font-bold text-lg transition-all flex items-center justify-center group"
               >
                 <Send className="w-5 h-5 mr-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> 
-                {user?.role === 'SUPPLIER' ? 'Submit New Bid' : 'Bidding Restricted to Suppliers'}
+                {bidButtonLabel}
               </button>
            </div>
 
