@@ -17,7 +17,7 @@ router.post('/signup', async (req, res) => {
     });
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'gocomet_secret', { expiresIn: '7d' });
-    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, company: user.company }, token });
+    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, company: user.company, carrierName: user.carrierName }, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -34,7 +34,7 @@ router.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'gocomet_secret', { expiresIn: '7d' });
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, company: user.company }, token });
+    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role, company: user.company, carrierName: user.carrierName }, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -46,7 +46,7 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, name: true, email: true, role: true, company: true }
+      select: { id: true, name: true, email: true, role: true, company: true, carrierName: true }
     });
     res.json(user);
   } catch (err) {

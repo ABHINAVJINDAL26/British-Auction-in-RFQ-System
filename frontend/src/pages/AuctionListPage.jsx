@@ -69,6 +69,13 @@ const AuctionListPage = () => {
           </p>
         </div>
         <div className="flex gap-4 items-center w-full md:w-auto">
+          <Link
+            to="/profile"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-accent-blue to-accent-green text-white font-bold text-lg hover:shadow-lg hover:shadow-accent-blue/30 transition-all duration-300 hover:scale-110"
+            title="View Profile"
+          >
+            {user?.name?.charAt(0).toUpperCase() || 'U'}
+          </Link>
           <button 
             onClick={logout} 
             className="text-text-muted hover:text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 px-4 py-2 rounded-lg active:scale-95"
