@@ -186,12 +186,17 @@ const AuctionListPage = () => {
 };
 
 const CreateRfqModal = ({ onClose, onSuccess }) => {
+  const defaultBidStart = new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16);
+  const defaultBidClose = new Date(Date.now() + 60 * 60000).toISOString().slice(0, 16);
+  const defaultForcedClose = new Date(Date.now() + 120 * 60000).toISOString().slice(0, 16);
+
   const [formData, setFormData] = React.useState({
     name: '',
     referenceId: `RFQ-${Date.now()}`,
     pickupDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-    bidCloseTime: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
-    forcedCloseTime: new Date(Date.now() + 7200000).toISOString().slice(0, 16),
+    bidStartTime: defaultBidStart,
+    bidCloseTime: defaultBidClose,
+    forcedCloseTime: defaultForcedClose,
     triggerWindowX: 10,
     extensionDurationY: 5,
     triggerType: 'L1_RANK_CHANGE'
@@ -200,9 +205,18 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (new Date(formData.bidCloseTime) <= new Date(formData.bidStartTime)) {
+        alert('Bid close time must be after bid start time.');
+        return;
+      }
+
+      if (new Date(formData.forcedCloseTime) <= new Date(formData.bidCloseTime)) {
+        alert('Forced close time must be after bid close time.');
+        return;
+      }
+
       await api.post('/rfqs', {
         ...formData,
-        bidStartTime: new Date().toISOString(),
         auctionConfig: {
           triggerWindowX: parseInt(formData.triggerWindowX),
           extensionDurationY: parseInt(formData.extensionDurationY),
@@ -235,6 +249,11 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">RFQ Ref. ID</label>
                    <input required className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white font-mono" 
                     value={formData.referenceId} onChange={e => setFormData({...formData, referenceId: e.target.value})} />
+                </div>
+                <div>
+                   <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Bid Start Date & Time</label>
+                   <input required type="datetime-local" className="w-full bg-bg-elevated border border-border-color rounded px-4 py-3 focus:border-accent-blue outline-none text-white"
+                  value={formData.bidStartTime} onChange={e => setFormData({...formData, bidStartTime: e.target.value})} />
                 </div>
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-2">Bidding Close Time</label>

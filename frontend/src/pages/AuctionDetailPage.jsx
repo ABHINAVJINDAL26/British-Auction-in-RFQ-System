@@ -6,6 +6,16 @@ import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import CountdownTimer from '../components/auction/CountdownTimer';
 import { Trophy, Clock, Activity, ArrowLeft, Send } from 'lucide-react';
 
+function formatDateTime(value) {
+  if (!value) return 'N/A';
+  return new Date(value).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+}
+
+function formatDate(value) {
+  if (!value) return 'N/A';
+  return new Date(value).toLocaleDateString();
+}
+
 const AuctionDetailPage = () => {
   const { id } = useParams();
   const { currentRfq, setCurrentRfq, events, bids, user, logout } = useAuctionStore();
@@ -70,8 +80,12 @@ const AuctionDetailPage = () => {
                 <tr>
                    <th className="px-6 py-3">Rank</th>
                    <th className="px-6 py-3">Carrier</th>
-                   <th className="px-6 py-3">Charges (Landed)</th>
+                   <th className="px-6 py-3">Freight</th>
+                   <th className="px-6 py-3">Origin</th>
+                   <th className="px-6 py-3">Destination</th>
+                   <th className="px-6 py-3">Total</th>
                    <th className="px-6 py-3">Transit</th>
+                   <th className="px-6 py-3">Quote Validity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-color">
@@ -89,15 +103,25 @@ const AuctionDetailPage = () => {
                         {bid.carrierName || bid.supplier?.company || 'Supplier'}
                         {bid.supplierId === user?.id && <span className="ml-2 text-[10px] bg-accent-blue/20 text-accent-blue px-2 py-0.5 rounded uppercase font-black">You</span>}
                       </td>
+                      <td className="px-6 py-4 font-mono text-text-primary">
+                        ₹{new Intl.NumberFormat('en-IN').format(bid.freightCharges || 0)}
+                      </td>
+                      <td className="px-6 py-4 font-mono text-text-primary">
+                        ₹{new Intl.NumberFormat('en-IN').format(bid.originCharges || 0)}
+                      </td>
+                      <td className="px-6 py-4 font-mono text-text-primary">
+                        ₹{new Intl.NumberFormat('en-IN').format(bid.destinationCharges || 0)}
+                      </td>
                       <td className={`px-6 py-4 font-mono font-bold ${index === 0 ? 'text-accent-green' : 'text-text-primary'}`}>
                         ₹{new Intl.NumberFormat('en-IN').format(bid.totalCharges)}
                       </td>
                       <td className="px-6 py-4 text-text-muted">{bid.transitTime} days</td>
+                      <td className="px-6 py-4 text-text-muted">{formatDate(bid.quoteValidity)}</td>
                    </tr>
                 ))}
                 {bids.length === 0 && (
                    <tr>
-                     <td colSpan="4" className="px-6 py-20 text-center text-text-muted italic">
+                     <td colSpan="8" className="px-6 py-20 text-center text-text-muted italic">
                         No bids received yet.
                      </td>
                    </tr>
@@ -176,6 +200,13 @@ const AuctionDetailPage = () => {
                        }`} />
                        <div>
                           <p className="text-text-primary group-hover:text-white transition-colors">{event.description}</p>
+                          {event.eventType === 'TIME_EXTENDED' && (
+                           <div className="mt-2 text-[11px] text-text-muted leading-5">
+                            <div>Reason: {event.reason || event.triggeredBy || 'Unknown'}</div>
+                            <div>Old close: {formatDateTime(event.oldCloseTime)}</div>
+                            <div>New close: {formatDateTime(event.newCloseTime)}</div>
+                           </div>
+                          )}
                           <span className="text-[10px] text-text-muted font-mono uppercase">{new Date(event.createdAt).toLocaleTimeString()}</span>
                        </div>
                     </div>

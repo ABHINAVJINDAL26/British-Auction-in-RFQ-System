@@ -2,6 +2,14 @@ import { useEffect } from 'react';
 import { socket } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
 
+function formatTriggerReason(reason) {
+  if (!reason) return 'Unknown';
+  return reason
+    .split('_')
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export function useAuctionSocket(rfqId) {
   const { updateBids, addEvent, extendTime, setStatus } = useAuctionStore();
 
@@ -26,12 +34,15 @@ export function useAuctionSocket(rfqId) {
       });
     });
 
-    socket.on('auction:time-extended', ({ newCloseTime, reason, extensionMinutes }) => {
+    socket.on('auction:time-extended', ({ oldCloseTime, newCloseTime, reason, extensionMinutes }) => {
       extendTime(newCloseTime);
       addEvent({
         id: Math.random().toString(),
         eventType: 'TIME_EXTENDED',
-        description: `Extended by ${extensionMinutes}m (${reason})`,
+        description: `Auction extended +${extensionMinutes} min`,
+        reason: formatTriggerReason(reason),
+        oldCloseTime,
+        newCloseTime,
         createdAt: new Date().toISOString()
       });
     });

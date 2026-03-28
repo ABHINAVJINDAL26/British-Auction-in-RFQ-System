@@ -90,6 +90,7 @@ async function extendAuction(rfq, extensionMinutes, reason, io) {
   if (io) {
     io.to(rfq.id).emit('auction:time-extended', {
       rfqId: rfq.id,
+      oldCloseTime: currentClose,
       newCloseTime: finalCloseTime,
       reason,
       extensionMinutes
