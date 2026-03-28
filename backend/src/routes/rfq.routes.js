@@ -7,18 +7,37 @@ const bidRoutes = require('./bid.routes');
 router.get('/', async (req, res) => {
   try {
     const rfqs = await prisma.rFQ.findMany({
-      include: { 
-        auctionConfig: true, 
-        buyer: true,
-        bids: {
-          where: { isLatest: true },
-          orderBy: { totalCharges: 'asc' },
-          take: 1
-        }
+      include: {
+        auctionConfig: true,
+        buyer: true
       },
       orderBy: { bidCloseTime: 'asc' }
     });
-    res.json(rfqs);
+
+    const rfqIds = rfqs.map((rfq) => rfq.id);
+    const latestRows = rfqIds.length
+      ? await prisma.bid.findMany({
+          where: { rfqId: { in: rfqIds }, isLatest: true },
+          orderBy: [{ rfqId: 'asc' }, { supplierId: 'asc' }, { submittedAt: 'desc' }],
+          distinct: ['rfqId', 'supplierId']
+        })
+      : [];
+
+    // Pick L1 bid per RFQ from deduped latest supplier bids.
+    const l1ByRfq = new Map();
+    for (const bid of latestRows) {
+      const current = l1ByRfq.get(bid.rfqId);
+      if (!current || bid.totalCharges < current.totalCharges) {
+        l1ByRfq.set(bid.rfqId, bid);
+      }
+    }
+
+    const response = rfqs.map((rfq) => ({
+      ...rfq,
+      bids: l1ByRfq.has(rfq.id) ? [l1ByRfq.get(rfq.id)] : []
+    }));
+
+    res.json(response);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -32,11 +51,6 @@ router.get('/:id', async (req, res) => {
       include: { 
         auctionConfig: true, 
         buyer: true,
-        bids: { 
-          where: { isLatest: true },
-          orderBy: { totalCharges: 'asc' },
-          include: { supplier: true }
-        },
         events: {
           orderBy: { createdAt: 'desc' },
           include: { actor: true }
@@ -44,7 +58,17 @@ router.get('/:id', async (req, res) => {
       }
     });
     if (!rfq) return res.status(404).json({ error: 'RFQ not found' });
-    res.json(rfq);
+
+    // One latest bid per supplier; then rank view sorted by total charges.
+    const dedupedLatestBids = await prisma.bid.findMany({
+      where: { rfqId: req.params.id, isLatest: true },
+      orderBy: [{ supplierId: 'asc' }, { submittedAt: 'desc' }],
+      distinct: ['supplierId'],
+      include: { supplier: true }
+    });
+    dedupedLatestBids.sort((a, b) => a.totalCharges - b.totalCharges);
+
+    res.json({ ...rfq, bids: dedupedLatestBids });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
