@@ -43,6 +43,7 @@ const LoginPage = () => {
               <input 
                 type="email" 
                 required 
+                autoComplete="username"
                 className="w-full bg-bg-elevated border border-border-color rounded-lg px-11 py-3 focus:border-accent-blue outline-none text-white transition-all"
                 placeholder="e.g. john@logistics.com"
                 value={email}
@@ -58,6 +59,7 @@ const LoginPage = () => {
               <input 
                 type="password" 
                 required 
+                autoComplete="current-password"
                 className="w-full bg-bg-elevated border border-border-color rounded-lg px-11 py-3 focus:border-accent-blue outline-none text-white transition-all"
                 placeholder="Enter your security password"
                 value={password}
