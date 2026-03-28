@@ -29,7 +29,7 @@ datasource db {
 ## 2. Backend Deployment (Render)
 1. **New Web Service**: Connect your GitHub repo.
 2. **Root Directory**: `backend`
-3. **Build Command**: `npm install && npx prisma generate`
+3. **Build Command**: `npm install && npx prisma generate && npx prisma db push`
 4. **Start Command**: `node src/index.js`
 5. **Environment Variables**:
    - `PORT`: `5000`
