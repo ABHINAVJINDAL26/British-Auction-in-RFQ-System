@@ -8,12 +8,29 @@ import { Trophy, Clock, Activity, ArrowLeft, Send } from 'lucide-react';
 
 function formatDateTime(value) {
   if (!value) return 'N/A';
-  return new Date(value).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  return new Date(value).toLocaleString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: 'short',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
 }
 
 function formatDate(value) {
   if (!value) return 'N/A';
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+}
+
+function formatTimeIST(value) {
+  if (!value) return 'N/A';
+  return new Date(value).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
 }
 
 const AuctionDetailPage = () => {
@@ -165,7 +182,7 @@ const AuctionDetailPage = () => {
                 ></div>
               </div>
               <div className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-10 w-full flex flex-col sm:flex-row justify-between gap-2">
-                <span>Hard Cap: {new Date(currentRfq.forcedCloseTime).toLocaleTimeString()}</span>
+                <span>Hard Cap: {formatTimeIST(currentRfq.forcedCloseTime)}</span>
                 <span className="text-accent-blue italic tracking-normal text-right">
                   {(() => {
                     const diff = new Date(currentRfq.forcedCloseTime) - new Date();

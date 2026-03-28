@@ -4,6 +4,16 @@ import api from '../lib/api';
 import useAuctionStore from '../store/auctionStore';
 import CountdownTimer from '../components/auction/CountdownTimer';
 
+const formatISTTime = (value) => {
+  if (!value) return '—';
+  return new Date(value).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
+};
+
 const AuctionListPage = () => {
   const { rfqs, setRfqs } = useAuctionStore();
 
@@ -99,7 +109,7 @@ const AuctionListPage = () => {
                     <div className={`w-1.5 h-1.5 rounded-full ${rfq.status === 'ACTIVE' ? 'bg-accent-amber animate-pulse' : 'bg-text-muted'}`} />
                     {rfq.status === 'ACTIVE' ? (
                       <span className="text-accent-amber font-bold">
-                         {new Date(rfq.bidCloseTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                         {formatISTTime(rfq.bidCloseTime)}
                       </span>
                     ) : (
                       <span className="text-text-muted opacity-60">
@@ -159,7 +169,7 @@ const AuctionListPage = () => {
                <div className="bg-bg-elevated/50 p-3 rounded-lg border border-white/5">
                   <p className="text-[10px] text-text-muted uppercase tracking-widest mb-1">Closing</p>
                   <p className="text-sm font-mono font-bold text-accent-amber">
-                    {new Date(rfq.bidCloseTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatISTTime(rfq.bidCloseTime)}
                   </p>
                </div>
             </div>

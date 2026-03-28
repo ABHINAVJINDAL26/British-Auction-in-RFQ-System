@@ -3,6 +3,17 @@ const router = express.Router();
 const prisma = require('../config/db');
 const bidRoutes = require('./bid.routes');
 
+function parseRfqDateTime(value) {
+  if (!value) return null;
+
+  // If frontend sends "YYYY-MM-DDTHH:mm" without timezone, interpret it as IST.
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    return new Date(`${value}:00+05:30`);
+  }
+
+  return new Date(value);
+}
+
 // List all RFQs
 router.get('/', async (req, res) => {
   try {
@@ -86,11 +97,11 @@ router.post('/', roleMiddleware(['BUYER']), async (req, res) => {
         name,
         referenceId,
         buyerId,
-        pickupDate: new Date(pickupDate),
-        bidStartTime: new Date(bidStartTime),
-        bidCloseTime: new Date(bidCloseTime),
-        forcedCloseTime: new Date(forcedCloseTime),
-        originalCloseTime: new Date(bidCloseTime),
+        pickupDate: parseRfqDateTime(pickupDate),
+        bidStartTime: parseRfqDateTime(bidStartTime),
+        bidCloseTime: parseRfqDateTime(bidCloseTime),
+        forcedCloseTime: parseRfqDateTime(forcedCloseTime),
+        originalCloseTime: parseRfqDateTime(bidCloseTime),
         status: 'ACTIVE', // Defaulting to ACTIVE for demo
         auctionConfig: {
           create: {
