@@ -37,9 +37,11 @@ const AuctionListPage = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
             {user?.role === 'BUYER' ? 'Buyer Control Center' : 'Supplier Marketplace'}
           </h1>
-          <p className="text-text-muted font-sans text-sm">
-            Logged in as <span className="text-accent-blue font-bold">{user?.name}</span>
-            <span className="hidden sm:inline"> ({user?.role}) </span> 
+          <p className="text-text-muted font-sans text-xs flex items-center gap-2 mt-1">
+            Logged in as <span className="text-accent-blue font-bold tracking-tight">{user?.name}</span>
+            <span className="bg-bg-elevated px-2 py-0.5 rounded text-[10px] border border-white/5 font-black uppercase text-accent-green">
+              {user?.role}
+            </span> 
             at <span className="text-white italic">{user?.company}</span>
           </p>
         </div>

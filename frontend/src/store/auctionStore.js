@@ -16,7 +16,8 @@ const useAuctionStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    set({ user: null, token: null });
+    set({ user: null, token: null, rfqs: [], currentRfq: null, events: [], bids: [] });
+    window.location.href = '/login'; // Force full refresh for clean slate
   },
   
   setRfqs: (rfqs) => set({ rfqs }),

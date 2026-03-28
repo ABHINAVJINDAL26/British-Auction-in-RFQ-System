@@ -40,4 +40,18 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Get current user (Debug/Verify)
+const { authMiddleware } = require('../middlewares/auth.middleware');
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, name: true, email: true, role: true, company: true }
+    });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
