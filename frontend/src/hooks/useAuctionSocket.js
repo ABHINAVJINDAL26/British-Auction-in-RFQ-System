@@ -8,12 +8,15 @@ export function useAuctionSocket(rfqId) {
   useEffect(() => {
     if (!rfqId) return;
 
+    // Explicitly connect (since autoConnect: false in socket.js)
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     socket.emit('join:auction', { rfqId });
 
     socket.on('bid:new', ({ bid, l1Changed }) => {
-      // Update the bids list and rankings in real-time
       useAuctionStore.getState().addBid(bid);
-      
       addEvent({
         id: bid.id || Math.random().toString(),
         eventType: 'BID_SUBMITTED',
@@ -47,6 +50,7 @@ export function useAuctionSocket(rfqId) {
       socket.off('bid:new');
       socket.off('auction:time-extended');
       socket.off('auction:status-changed');
+      socket.disconnect();
     };
   }, [rfqId, updateBids, addEvent, extendTime, setStatus]);
 }
