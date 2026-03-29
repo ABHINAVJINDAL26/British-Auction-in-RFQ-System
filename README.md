@@ -13,8 +13,20 @@ A production-grade, real-time British Auction system for Freight RFQs. Built wit
 
 ## 🛠️ Tech Stack
 - **Frontend**: React 18, Vite, Tailwind CSS v4, Zustand.
-- **Backend**: Node.js, Express, Prisma (SQLite).
+- **Backend**: Node.js, Express, Prisma (PostgreSQL).
 - **Communication**: Socket.IO for real-time sync.
+
+## 🧭 High Level Design (HLD)
+
+The following architecture diagram is aligned with the current project implementation:
+
+- Buyer and Supplier portals
+- REST + WebSocket hybrid flow
+- Bid processing + extension engine
+- 30-second scheduler (cron)
+- PostgreSQL + Prisma data layer
+
+![British Auction RFQ - HLD](./Hld_arc.png)
 
 ## 📦 Getting Started
 
@@ -37,5 +49,8 @@ npm install
 npm run dev
 ```
 
-## 📝 Testing Logic
-For a detailed step-by-step walkthrough of the auction logic (including extension triggers and L1 rank changes), see **[TESTING_GUIDE.md](./TESTING_GUIDE.md)**.
+## ✅ Core Runtime Rules
+- Bid submit performs immediate extension check (cron wait is not required).
+- Trigger window is always computed from current `bidCloseTime`.
+- Forced close time is a hard cap and is never crossed.
+- Only latest bid per supplier participates in live ranking (`isLatest = true`).
