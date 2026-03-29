@@ -118,16 +118,29 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
         }
       });
 
-      return { newBid, l1Changed };
+      return { newBid, l1Changed, rankedBids };
     });
 
     // Broadcast
-    req.io.to(rfqId).emit('bid:new', { bid: result.newBid, l1Changed: result.l1Changed });
+    req.io.to(rfqId).emit('bid:new', {
+      bid: result.newBid,
+      l1Changed: result.l1Changed,
+      newRankings: result.rankedBids
+    });
 
-    // Trigger extension check
-    await checkAndExtendAuction(rfqId, req.io);
+    // Trigger extension check immediately on bid submit.
+    const extensionResult = await checkAndExtendAuction(rfqId, req.io);
 
-    res.status(201).json(result.newBid);
+    res.status(200).json({
+      bid: result.newBid,
+      rankings: result.rankedBids,
+      l1Changed: result.l1Changed,
+      extended: !!extensionResult?.extended,
+      oldCloseTime: extensionResult?.oldCloseTime || null,
+      newCloseTime: extensionResult?.newCloseTime || null,
+      reason: extensionResult?.reason || null,
+      extensionMinutes: extensionResult?.extensionMinutes || null
+    });
   } catch (err) {
     if (err.message === 'Auction is not active' || err.message === 'Auction has closed' || err.message === 'Bidding has not started yet') {
       return res.status(400).json({ error: err.message });

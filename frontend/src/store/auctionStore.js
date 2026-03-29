@@ -27,7 +27,10 @@ const useAuctionStore = create((set) => ({
   setRfqs: (rfqs) => set({ rfqs }),
   setCurrentRfq: (rfq) => set({ currentRfq: rfq, bids: rfq?.bids || [], events: rfq?.events || [] }),
   
-  updateBids: (newBids) => set({ bids: newBids }),
+  updateBids: (newBids) => set((state) => ({
+    bids: newBids,
+    currentRfq: state.currentRfq ? { ...state.currentRfq, bids: newBids } : null
+  })),
   addBid: (bid) => set((state) => {
     // 1. Update standalone bids array
     // Filter out any existing bid from the same supplier for the same RFQ to replace it

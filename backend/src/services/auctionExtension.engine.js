@@ -9,7 +9,9 @@ async function checkAndExtendAuction(rfqId, io) {
     include: { auctionConfig: true }
   });
 
-  if (!rfq || rfq.status !== 'ACTIVE') return;
+  if (!rfq || rfq.status !== 'ACTIVE') {
+    return { extended: false };
+  }
 
   const now = new Date();
   const { triggerWindowX, extensionDurationY, triggerType } = rfq.auctionConfig;
@@ -19,7 +21,9 @@ async function checkAndExtendAuction(rfqId, io) {
   windowStart.setMinutes(windowStart.getMinutes() - triggerWindowX);
 
   // Only evaluate if we're inside the trigger window
-  if (now < windowStart || now > rfq.bidCloseTime) return;
+  if (now < windowStart || now > rfq.bidCloseTime) {
+    return { extended: false };
+  }
 
   // Guardrail: a single old event should not keep re-triggering extensions.
   // We only extend if there is a qualifying activity after the last extension.
@@ -86,12 +90,16 @@ async function checkAndExtendAuction(rfqId, io) {
   }
 
   if (shouldExtend) {
-    await extendAuction(rfq, extensionDurationY, triggerType, io);
+    return await extendAuction(rfq, extensionDurationY, triggerType, io);
   }
+
+  return { extended: false };
 }
 
 async function extendAuction(rfq, extensionMinutes, reason, io) {
-  if (!Number.isFinite(extensionMinutes) || extensionMinutes <= 0) return;
+  if (!Number.isFinite(extensionMinutes) || extensionMinutes <= 0) {
+    return { extended: false };
+  }
 
   const currentClose = new Date(rfq.bidCloseTime);
   const newCloseTime = new Date(currentClose.getTime() + extensionMinutes * 60000);
@@ -101,7 +109,9 @@ async function extendAuction(rfq, extensionMinutes, reason, io) {
   const finalCloseTime = newCloseTime > forcedClose ? forcedClose : newCloseTime;
 
   // Don't extend if already at forced close
-  if (currentClose.getTime() >= forcedClose.getTime()) return;
+  if (currentClose.getTime() >= forcedClose.getTime()) {
+    return { extended: false };
+  }
 
   await prisma.rFQ.update({
     where: { id: rfq.id },
@@ -130,6 +140,15 @@ async function extendAuction(rfq, extensionMinutes, reason, io) {
       extensionMinutes
     });
   }
+
+  return {
+    extended: true,
+    rfqId: rfq.id,
+    oldCloseTime: currentClose,
+    newCloseTime: finalCloseTime,
+    reason,
+    extensionMinutes
+  };
 }
 
 module.exports = { checkAndExtendAuction };

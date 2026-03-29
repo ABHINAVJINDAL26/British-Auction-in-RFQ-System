@@ -29,8 +29,12 @@ export function useAuctionSocket(rfqId) {
     joinAuctionRoom();
     socket.on('connect', joinAuctionRoom);
 
-    socket.on('bid:new', ({ bid, l1Changed }) => {
-      useAuctionStore.getState().addBid(bid);
+    socket.on('bid:new', ({ bid, l1Changed, newRankings }) => {
+      if (Array.isArray(newRankings) && newRankings.length > 0) {
+        useAuctionStore.getState().updateBids(newRankings);
+      } else {
+        useAuctionStore.getState().addBid(bid);
+      }
       addEvent({
         id: bid.id || Math.random().toString(),
         eventType: 'BID_SUBMITTED',
