@@ -55,6 +55,22 @@ const AuctionDetailPage = () => {
     fetchRfq();
   }, [id, setCurrentRfq]);
 
+  // Fallback polling: keeps status/timer aligned even if a socket event is missed.
+  useEffect(() => {
+    if (!id) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await api.get(`/rfqs/${id}`);
+        setCurrentRfq(res.data);
+      } catch (err) {
+        // Silent fallback; primary channel is WebSocket.
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [id, setCurrentRfq]);
+
   if (loading || !currentRfq) return <div className="p-8 text-center text-text-muted">Loading auction data...</div>;
 
   const isDraft = currentRfq.status === 'DRAFT';

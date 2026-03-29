@@ -21,7 +21,13 @@ export function useAuctionSocket(rfqId) {
       socket.connect();
     }
 
-    socket.emit('join:auction', { rfqId });
+    const joinAuctionRoom = () => {
+      socket.emit('join:auction', { rfqId });
+    };
+
+    // Join immediately (if already connected) and re-join on reconnect.
+    joinAuctionRoom();
+    socket.on('connect', joinAuctionRoom);
 
     socket.on('bid:new', ({ bid, l1Changed }) => {
       useAuctionStore.getState().addBid(bid);
@@ -61,7 +67,7 @@ export function useAuctionSocket(rfqId) {
       socket.off('bid:new');
       socket.off('auction:time-extended');
       socket.off('auction:status-changed');
-      socket.disconnect();
+      socket.off('connect', joinAuctionRoom);
     };
   }, [rfqId, updateBids, addEvent, extendTime, setStatus]);
 }
