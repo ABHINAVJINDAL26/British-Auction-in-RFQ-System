@@ -22,18 +22,14 @@ function App() {
     if (!token) return;
     api.get('/auth/me')
       .then(res => {
-        // Sync user from server — this is the ground truth
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        if (currentUser.role !== res.data.role) {
-          // Role mismatch — update with server's version
-          setAuth(res.data, token);
-        }
+        // Always sync user from server — this is the ground truth.
+        setAuth(res.data, token);
       })
       .catch(() => {
         // Token invalid/expired — force logout
         logout();
       });
-  }, [token]);
+  }, [token, setAuth, logout]);
 
   return (
     <Router>
