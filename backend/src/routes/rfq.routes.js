@@ -92,10 +92,30 @@ router.post('/', roleMiddleware(['BUYER']), async (req, res) => {
   const { name, referenceId, pickupDate, bidStartTime, bidCloseTime, forcedCloseTime, auctionConfig } = req.body;
   const buyerId = req.user.id; // Get from token
   try {
+    const triggerWindowX = parseInt(auctionConfig?.triggerWindowX, 10);
+    const extensionDurationY = parseInt(auctionConfig?.extensionDurationY, 10);
+
+    if (!Number.isInteger(triggerWindowX) || triggerWindowX <= 0) {
+      return res.status(400).json({ error: 'Trigger window must be a positive integer.' });
+    }
+
+    if (!Number.isInteger(extensionDurationY) || extensionDurationY <= 0) {
+      return res.status(400).json({ error: 'Extension duration must be a positive integer.' });
+    }
+
     const parsedPickupDate = parseRfqDateTime(pickupDate);
     const parsedBidStartTime = parseRfqDateTime(bidStartTime);
     const parsedBidCloseTime = parseRfqDateTime(bidCloseTime);
     const parsedForcedCloseTime = parseRfqDateTime(forcedCloseTime);
+
+    if (parsedBidCloseTime <= parsedBidStartTime) {
+      return res.status(400).json({ error: 'Bid close time must be after bid start time.' });
+    }
+
+    if (parsedForcedCloseTime <= parsedBidCloseTime) {
+      return res.status(400).json({ error: 'Forced close time must be after bid close time.' });
+    }
+
     const initialStatus = new Date() >= parsedBidStartTime ? 'ACTIVE' : 'DRAFT';
 
     const rfq = await prisma.rFQ.create({
@@ -111,8 +131,8 @@ router.post('/', roleMiddleware(['BUYER']), async (req, res) => {
         status: initialStatus,
         auctionConfig: {
           create: {
-            triggerWindowX: auctionConfig.triggerWindowX,
-            extensionDurationY: auctionConfig.extensionDurationY,
+            triggerWindowX,
+            extensionDurationY,
             triggerType: auctionConfig.triggerType
           }
         }

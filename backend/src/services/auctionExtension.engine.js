@@ -90,6 +90,8 @@ async function checkAndExtendAuction(rfqId, io) {
 }
 
 async function extendAuction(rfq, extensionMinutes, reason, io) {
+  if (!Number.isFinite(extensionMinutes) || extensionMinutes <= 0) return;
+
   const currentClose = new Date(rfq.bidCloseTime);
   const newCloseTime = new Date(currentClose.getTime() + extensionMinutes * 60000);
 

@@ -351,12 +351,12 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
                 <div className="grid grid-cols-3 gap-4">
                    <div>
                       <label className="block text-[9px] uppercase font-bold text-text-muted mb-1">Trigger Window (Mins)</label>
-                      <input type="number" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
+                     <input type="number" min="1" step="1" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
                         value={formData.triggerWindowX} onChange={e => setFormData({...formData, triggerWindowX: e.target.value})} />
                    </div>
                    <div>
                       <label className="block text-[9px] uppercase font-bold text-text-muted mb-1">Extension (Mins)</label>
-                      <input type="number" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
+                     <input type="number" min="1" step="1" className="w-full bg-bg-card border border-border-color rounded px-3 py-2 text-white" 
                         value={formData.extensionDurationY} onChange={e => setFormData({...formData, extensionDurationY: e.target.value})} />
                    </div>
                    <div>
