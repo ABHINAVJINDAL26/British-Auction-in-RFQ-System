@@ -118,6 +118,14 @@ router.post('/', roleMiddleware(['BUYER']), async (req, res) => {
         }
       }
     });
+
+    if (req.io) {
+      req.io.emit('rfq:created', {
+        rfqId: rfq.id,
+        status: rfq.status
+      });
+    }
+
     res.status(201).json(rfq);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,19 +1,23 @@
 import { create } from 'zustand';
 
 const useAuctionStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('user')) || null,
-  token: localStorage.getItem('token') || null,
+  user: JSON.parse(sessionStorage.getItem('user') || 'null'),
+  token: sessionStorage.getItem('token') || null,
   rfqs: [],
   currentRfq: null,
   events: [],
   bids: [],
 
   setAuth: (user, token) => {
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('token', token);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
     set({ user, token });
   },
   logout: () => {
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     set({ user: null, token: null, rfqs: [], currentRfq: null, events: [], bids: [] });

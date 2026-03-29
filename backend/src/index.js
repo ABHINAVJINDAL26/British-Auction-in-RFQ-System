@@ -68,6 +68,7 @@ cron.schedule('*/30 * * * * *', async () => {
           }
         });
         io.to(rfq.id).emit('auction:status-changed', { rfqId: rfq.id, status: 'ACTIVE' });
+        io.emit('rfq:status-changed', { rfqId: rfq.id, status: 'ACTIVE' });
         console.log(`Auction ${rfq.id} ACTIVE`);
         continue;
       }
@@ -105,6 +106,7 @@ cron.schedule('*/30 * * * * *', async () => {
           }
         });
         io.to(latestRfq.id).emit('auction:status-changed', { rfqId: latestRfq.id, status: nextStatus });
+        io.emit('rfq:status-changed', { rfqId: latestRfq.id, status: nextStatus });
         console.log(`Auction ${latestRfq.id} ${nextStatus}`);
       }
     }

@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
+import { socket } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
 import CountdownTimer from '../components/auction/CountdownTimer';
 
@@ -34,23 +35,45 @@ const AuctionListPage = () => {
 
   const { user, logout } = useAuctionStore();
 
-  useEffect(() => {
-    const fetchRfqs = async () => {
-      try {
-        const res = await api.get('/rfqs');
-        setRfqs(res.data);
-      } catch (err) {
-        if (err.response?.status === 401) logout();
-        console.error(err);
-      }
-    };
-    fetchRfqs();
+  const fetchRfqs = useCallback(async () => {
+    try {
+      const res = await api.get('/rfqs');
+      setRfqs(res.data);
+    } catch (err) {
+      if (err.response?.status === 401) logout();
+      console.error(err);
+    }
   }, [setRfqs, logout]);
+
+  useEffect(() => {
+    fetchRfqs();
+  }, [fetchRfqs]);
+
+  useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const handleRfqCreated = () => {
+      fetchRfqs();
+    };
+
+    const handleRfqStatusChanged = () => {
+      fetchRfqs();
+    };
+
+    socket.on('rfq:created', handleRfqCreated);
+    socket.on('rfq:status-changed', handleRfqStatusChanged);
+
+    return () => {
+      socket.off('rfq:created', handleRfqCreated);
+      socket.off('rfq:status-changed', handleRfqStatusChanged);
+    };
+  }, [fetchRfqs]);
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
-    // Re-fetch list
-    api.get('/rfqs').then(res => setRfqs(res.data));
+    fetchRfqs();
   };
 
   return (

@@ -12,7 +12,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token.trim()}`;
   }
@@ -24,6 +24,8 @@ api.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       // Token missing/expired/stale for current backend; reset auth and force login.
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
