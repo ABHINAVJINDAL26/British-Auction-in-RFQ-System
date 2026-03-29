@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/api';
 import useAuctionStore from '../store/auctionStore';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const setAuth = useAuctionStore((state) => state.setAuth);
@@ -57,14 +58,22 @@ const LoginPage = () => {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input 
-                type="password" 
+                type={showPassword ? 'text' : 'password'} 
                 required 
                 autoComplete="current-password"
-                className="w-full bg-bg-elevated border border-border-color rounded-lg px-11 py-3 focus:border-accent-blue outline-none text-white transition-all"
+                className="w-full bg-bg-elevated border border-border-color rounded-lg pl-11 pr-12 py-3 focus:border-accent-blue outline-none text-white transition-all"
                 placeholder="Enter your security password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-white rounded-md hover:bg-white/10 transition-all"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
           
