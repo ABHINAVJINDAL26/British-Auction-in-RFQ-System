@@ -21,12 +21,32 @@ async function checkAndExtendAuction(rfqId, io) {
   // Only evaluate if we're inside the trigger window
   if (now < windowStart || now > rfq.bidCloseTime) return;
 
+  // Guardrail: a single old event should not keep re-triggering extensions.
+  // We only extend if there is a qualifying activity after the last extension.
+  const lastExtensionEvent = await prisma.auctionEvent.findFirst({
+    where: {
+      rfqId,
+      eventType: 'TIME_EXTENDED'
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  const lastExtensionAt = lastExtensionEvent?.createdAt || null;
+
   let shouldExtend = false;
 
   if (triggerType === 'BID_RECEIVED') {
     // Check if any bid was placed in the trigger window
     const recentBid = await prisma.bid.findFirst({
-      where: { rfqId: rfqId, submittedAt: { gte: windowStart } }
+      where: {
+        rfqId,
+        submittedAt: {
+          gte: windowStart,
+          lte: rfq.bidCloseTime,
+          ...(lastExtensionAt ? { gt: lastExtensionAt } : {})
+        }
+      },
+      orderBy: { submittedAt: 'desc' }
     });
     shouldExtend = !!recentBid;
   }
@@ -34,10 +54,15 @@ async function checkAndExtendAuction(rfqId, io) {
     // Check if any bid changed rankings in window
     const rankEvent = await prisma.auctionEvent.findFirst({
       where: {
-        rfqId: rfqId,
+        rfqId,
         eventType: 'BID_SUBMITTED',
-        createdAt: { gte: windowStart }
-      }
+        createdAt: {
+          gte: windowStart,
+          lte: rfq.bidCloseTime,
+          ...(lastExtensionAt ? { gt: lastExtensionAt } : {})
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     shouldExtend = !!rankEvent;
   }
@@ -45,10 +70,16 @@ async function checkAndExtendAuction(rfqId, io) {
     // Check if L1 changed in the window
     const l1ChangeEvent = await prisma.auctionEvent.findFirst({
       where: {
-        rfqId: rfqId,
+        rfqId,
+        eventType: 'BID_SUBMITTED',
         triggeredBy: 'L1_RANK_CHANGE',
-        createdAt: { gte: windowStart }
-      }
+        createdAt: {
+          gte: windowStart,
+          lte: rfq.bidCloseTime,
+          ...(lastExtensionAt ? { gt: lastExtensionAt } : {})
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     shouldExtend = !!l1ChangeEvent;
   }
