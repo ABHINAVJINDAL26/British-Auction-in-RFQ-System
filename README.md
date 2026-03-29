@@ -52,6 +52,33 @@ Database schema document:
 4. Start backend server.
 5. Start frontend dev server.
 
+## How to Run (Commands)
+
+1. Clone and enter project
+	- git clone <your-repo-url>
+	- cd Gocomet
+
+2. Backend setup and run (Terminal 1)
+	- cd backend
+	- npm install
+	- npx prisma generate
+	- npx prisma db push
+	- npm start
+
+3. Frontend setup and run (Terminal 2)
+	- cd frontend
+	- npm install
+	- npm run dev
+
+4. Open app
+	- Frontend: http://localhost:5173
+	- Backend API: http://localhost:5000
+
+5. Optional useful commands
+	- Frontend build: npm run build
+	- Frontend preview: npm run preview
+	- Frontend lint: npm run lint
+
 ## Runtime Flow
 1. Buyer creates RFQ with auction config.
 2. Supplier submits bids in active window.
