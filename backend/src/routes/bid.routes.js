@@ -28,11 +28,16 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
         throw new Error('Auction has closed');
       }
 
-      // Get current L1 before writing the new bid.
-      const currentL1 = await tx.bid.findFirst({
+      // Snapshot ranking state before writing the new bid.
+      const previousLatestSupplierBids = await tx.bid.findMany({
         where: { rfqId, isLatest: true },
-        orderBy: { totalCharges: 'asc' }
+        orderBy: [{ supplierId: 'asc' }, { submittedAt: 'desc' }],
+        distinct: ['supplierId']
       });
+
+      const previousRankedBids = [...previousLatestSupplierBids].sort((a, b) => a.totalCharges - b.totalCharges);
+      const previousL1 = previousRankedBids[0] || null;
+      const previousRankMap = new Map(previousRankedBids.map((bid, index) => [bid.supplierId, index + 1]));
 
       // Mark supplier's older latest bids as not-latest.
       await tx.bid.updateMany({
@@ -84,7 +89,24 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
       }
 
       const newL1 = rankedBids[0];
-      const l1Changed = currentL1?.supplierId !== newL1?.supplierId;
+      const l1Changed = previousL1?.supplierId !== newL1?.supplierId;
+
+      const newRankMap = new Map(rankedBids.map((bid, index) => [bid.supplierId, index + 1]));
+      const allSupplierIds = new Set([...previousRankMap.keys(), ...newRankMap.keys()]);
+
+      let anyRankChanged = false;
+      for (const supplierKey of allSupplierIds) {
+        if (previousRankMap.get(supplierKey) !== newRankMap.get(supplierKey)) {
+          anyRankChanged = true;
+          break;
+        }
+      }
+
+      const triggeredBy = l1Changed
+        ? 'L1_RANK_CHANGE'
+        : anyRankChanged
+        ? 'ANY_RANK_CHANGE'
+        : null;
 
       await tx.auctionEvent.create({
         data: {
@@ -92,7 +114,7 @@ router.post('/', roleMiddleware(['SUPPLIER']), async (req, res) => {
           eventType: 'BID_SUBMITTED',
           actorId: supplierId,
           description: `New bid of ₹${totalCharges} submitted`,
-          triggeredBy: l1Changed ? 'L1_RANK_CHANGE' : null
+          triggeredBy
         }
       });
 

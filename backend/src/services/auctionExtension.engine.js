@@ -51,11 +51,12 @@ async function checkAndExtendAuction(rfqId, io) {
     shouldExtend = !!recentBid;
   }
   else if (triggerType === 'ANY_RANK_CHANGE') {
-    // Check if any bid changed rankings in window
+    // Check if any ranking changed in window (L1 change is also a rank change).
     const rankEvent = await prisma.auctionEvent.findFirst({
       where: {
         rfqId,
         eventType: 'BID_SUBMITTED',
+        triggeredBy: { in: ['ANY_RANK_CHANGE', 'L1_RANK_CHANGE'] },
         createdAt: {
           gte: windowStart,
           lte: rfq.bidCloseTime,
