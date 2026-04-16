@@ -33,6 +33,20 @@ function formatTimeIST(value) {
   });
 }
 
+function formatRemainingTime(target) {
+  const diff = new Date(target) - new Date();
+  if (diff <= 0) return 'HARD CAP REACHED';
+
+  const totalMinutes = Math.floor(diff / 60000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hours}h ${minutes}m to Forced Close`;
+  if (hours > 0) return `${hours}h ${minutes}m to Forced Close`;
+  return `${minutes}m to Forced Close`;
+}
+
 const AuctionDetailPage = () => {
   const { id } = useParams();
   const { currentRfq, setCurrentRfq, events, bids, user, logout } = useAuctionStore();
@@ -219,14 +233,9 @@ const AuctionDetailPage = () => {
                 ></div>
               </div>
               <div className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-10 w-full flex flex-col sm:flex-row justify-between gap-2">
-                <span>Hard Cap: {formatTimeIST(currentRfq.forcedCloseTime)}</span>
+                <span>Hard Cap: {formatDateTime(currentRfq.forcedCloseTime)}</span>
                 <span className="text-accent-blue italic tracking-normal text-right">
-                  {(() => {
-                    const diff = new Date(currentRfq.forcedCloseTime) - new Date();
-                    if (diff <= 0) return 'HARD CAP REACHED';
-                    const mins = Math.floor(diff / 60000);
-                    return `${mins} min to Forced Close`;
-                  })()}
+                  {formatRemainingTime(currentRfq.forcedCloseTime)}
                 </span>
               </div>
 
