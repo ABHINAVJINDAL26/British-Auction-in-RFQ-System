@@ -5,6 +5,7 @@ import com.auction.model.Rfq;
 import com.auction.model.User;
 import com.auction.repository.RfqRepository;
 import com.auction.repository.UserRepository;
+import com.auction.validator.RfqValidator;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ public class RfqController {
     private final RfqRepository rfqRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RfqValidator rfqValidator;
 
     @GetMapping
     public ResponseEntity<List<Rfq>> getAllRfqs() {
@@ -44,6 +46,12 @@ public class RfqController {
     public ResponseEntity<?> createRfq(@RequestBody CreateRfqRequest request, @RequestAttribute("userId") String userId, @RequestAttribute("userRole") String userRole) {
         if (!"BUYER".equals(userRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied: insufficient permissions"));
+        }
+
+        try {
+            rfqValidator.validate(request);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
 
         User buyer = userRepository.findById(userId).orElseThrow();
@@ -83,7 +91,7 @@ public class RfqController {
     }
 
     @Data
-    static class CreateRfqRequest {
+    public static class CreateRfqRequest {
         private String referenceId;
         private String name;
         private String pickupDate;
@@ -93,7 +101,7 @@ public class RfqController {
         private AuctionConfigRequest auctionConfig;
 
         @Data
-        static class AuctionConfigRequest {
+        public static class AuctionConfigRequest {
             private Integer triggerWindowX;
             private Integer extensionDurationY;
             private String triggerType;

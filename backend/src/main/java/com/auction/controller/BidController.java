@@ -1,7 +1,10 @@
 package com.auction.controller;
 
 import com.auction.model.Bid;
+import com.auction.model.Rfq;
+import com.auction.repository.RfqRepository;
 import com.auction.service.BidService;
+import com.auction.validator.BidValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,8 @@ import java.util.Map;
 public class BidController {
 
     private final BidService bidService;
+    private final RfqRepository rfqRepository;
+    private final BidValidator bidValidator;
 
     @PostMapping
     public ResponseEntity<?> submitBid(@PathVariable String id, @RequestBody BidRequest request, @RequestAttribute("userId") String userId, @RequestAttribute("userRole") String userRole) {
@@ -24,6 +29,11 @@ public class BidController {
         }
 
         try {
+            Rfq rfq = rfqRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("RFQ not found"));
+            
+            bidValidator.validate(request, rfq);
+
             Bid bidInput = Bid.builder()
                     .carrierName(request.getCarrierName())
                     .freightCharges(request.getFreightCharges())
@@ -42,7 +52,7 @@ public class BidController {
     }
 
     @lombok.Data
-    static class BidRequest {
+    public static class BidRequest {
         private String carrierName;
         private Double freightCharges;
         private Double originCharges;
