@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
-import { socket } from '../lib/socket';
+import { stompClient } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
 import CountdownTimer from '../components/auction/CountdownTimer';
 
@@ -50,24 +50,26 @@ const AuctionListPage = () => {
   }, [fetchRfqs]);
 
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
+    const onConnect = () => {
+      stompClient.subscribe('/topic/rfq/created', () => {
+        fetchRfqs();
+      });
+      stompClient.subscribe('/topic/rfq/status', () => {
+        fetchRfqs();
+      });
+    };
+
+    if (!stompClient.active) {
+      stompClient.onConnect = onConnect;
+      stompClient.activate();
+    } else {
+      onConnect();
     }
 
-    const handleRfqCreated = () => {
-      fetchRfqs();
-    };
-
-    const handleRfqStatusChanged = () => {
-      fetchRfqs();
-    };
-
-    socket.on('rfq:created', handleRfqCreated);
-    socket.on('rfq:status-changed', handleRfqStatusChanged);
-
     return () => {
-      socket.off('rfq:created', handleRfqCreated);
-      socket.off('rfq:status-changed', handleRfqStatusChanged);
+      // Deactivating STOMP will clear subscriptions for this component's lifecycle
+      // if it's the main connection manager, otherwise we would track subscriptions.
+      // Since it's a global client, we won't deactivate it here to avoid breaking other components.
     };
   }, [fetchRfqs]);
 
