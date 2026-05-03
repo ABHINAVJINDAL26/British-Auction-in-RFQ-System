@@ -1,77 +1,75 @@
-import { useEffect } from 'react';
-import { socket } from '../lib/socket';
+import { useEffect, useRef } from 'react';
+import { stompClient } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
-
-function formatTriggerReason(reason) {
-  if (!reason) return 'Unknown';
-  return reason
-    .split('_')
-    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-    .join(' ');
-}
 
 export function useAuctionSocket(rfqId) {
   const { updateBids, addEvent, extendTime, setStatus } = useAuctionStore();
+  const subscriptionRefs = useRef([]);
 
   useEffect(() => {
     if (!rfqId) return;
 
-    // Explicitly connect (since autoConnect: false in socket.js)
-    if (!socket.connected) {
-      socket.connect();
-    }
+    const onConnect = () => {
+      // Subscribe to Bid Events
+      const bidSub = stompClient.subscribe(`/topic/auction/${rfqId}/bid`, (message) => {
+        const payload = JSON.parse(message.body);
+        const bid = payload.bid;
+        useAuctionStore.getState().addBid(bid);
+        
+        addEvent({
+          id: bid.id || Math.random().toString(),
+          eventType: 'BID_SUBMITTED',
+          actor: bid.supplier,
+          description: `New bid submitted: ₹${new Intl.NumberFormat('en-IN').format(bid.totalCharges)}`,
+          createdAt: new Date().toISOString()
+        });
+      });
+      subscriptionRefs.current.push(bidSub);
 
-    const joinAuctionRoom = () => {
-      socket.emit('join:auction', { rfqId });
+      // Subscribe to Time Extension Events
+      const timeSub = stompClient.subscribe(`/topic/auction/${rfqId}/time`, (message) => {
+        const payload = JSON.parse(message.body);
+        extendTime(payload.newCloseTime);
+        
+        addEvent({
+          id: Math.random().toString(),
+          eventType: 'TIME_EXTENDED',
+          description: `Extended by ${payload.extensionMinutes}m (${payload.reason})`,
+          createdAt: new Date().toISOString()
+        });
+      });
+      subscriptionRefs.current.push(timeSub);
+
+      // Subscribe to Status Change Events
+      const statusSub = stompClient.subscribe(`/topic/auction/${rfqId}/status`, (message) => {
+        const payload = JSON.parse(message.body);
+        setStatus(payload.status);
+        
+        addEvent({
+          id: Math.random().toString(),
+          eventType: 'STATUS_CHANGED',
+          description: `Auction status: ${payload.status}`,
+          createdAt: new Date().toISOString()
+        });
+      });
+      subscriptionRefs.current.push(statusSub);
     };
 
-    // Join immediately (if already connected) and re-join on reconnect.
-    joinAuctionRoom();
-    socket.on('connect', joinAuctionRoom);
-
-    socket.on('bid:new', ({ bid, l1Changed, newRankings }) => {
-      if (Array.isArray(newRankings) && newRankings.length > 0) {
-        useAuctionStore.getState().updateBids(newRankings);
-      } else {
-        useAuctionStore.getState().addBid(bid);
-      }
-      addEvent({
-        id: bid.id || Math.random().toString(),
-        eventType: 'BID_SUBMITTED',
-        actor: bid.supplier,
-        description: `New bid submitted: ₹${new Intl.NumberFormat('en-IN').format(bid.totalCharges)}`,
-        createdAt: new Date().toISOString()
-      });
-    });
-
-    socket.on('auction:time-extended', ({ oldCloseTime, newCloseTime, reason, extensionMinutes }) => {
-      extendTime(newCloseTime);
-      addEvent({
-        id: Math.random().toString(),
-        eventType: 'TIME_EXTENDED',
-        description: `Auction extended +${extensionMinutes} min`,
-        reason: formatTriggerReason(reason),
-        oldCloseTime,
-        newCloseTime,
-        createdAt: new Date().toISOString()
-      });
-    });
-
-    socket.on('auction:status-changed', ({ status }) => {
-      setStatus(status);
-      addEvent({
-        id: Math.random().toString(),
-        eventType: 'STATUS_CHANGED',
-        description: `Auction status: ${status}`,
-        createdAt: new Date().toISOString()
-      });
-    });
+    if (!stompClient.active) {
+      stompClient.onConnect = onConnect;
+      stompClient.activate();
+    } else {
+      onConnect();
+    }
 
     return () => {
-      socket.off('bid:new');
-      socket.off('auction:time-extended');
-      socket.off('auction:status-changed');
-      socket.off('connect', joinAuctionRoom);
+      // Unsubscribe on cleanup
+      subscriptionRefs.current.forEach(sub => sub.unsubscribe());
+      subscriptionRefs.current = [];
+      
+      // If no more subscriptions exist globally, we could deactivate, 
+      // but typically STOMP client stays active or we deactivate it if leaving auction pages entirely.
+      stompClient.deactivate();
     };
   }, [rfqId, updateBids, addEvent, extendTime, setStatus]);
 }

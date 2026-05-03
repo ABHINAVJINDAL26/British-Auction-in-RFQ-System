@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auction_db
+      POSTGRES_USER: auction_user
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - auction-net
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auction_db
+      SPRING_DATASOURCE_USERNAME: auction_user
+      SPRING_DATASOURCE_PASSWORD: secret
+      JWT_SECRET: your_super_secret_key_that_must_be_long_enough_for_hmac_sha256
+    depends_on:
+      - postgres
+    networks:
+      - auction-net
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - auction-net
+
+volumes:
+  pgdata:
+
+networks:
+  auction-net:
+    driver: bridge

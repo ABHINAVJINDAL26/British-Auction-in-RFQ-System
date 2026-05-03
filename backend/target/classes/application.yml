@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auction_db}
+    username: ${SPRING_DATASOURCE_USERNAME:auction_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:secret}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+jwt:
+  secret: ${JWT_SECRET:your_super_secret_key_that_must_be_long_enough_for_hmac_sha256}
+  expiration: 86400000 # 24 hours
+
+server:
+  port: 8080
