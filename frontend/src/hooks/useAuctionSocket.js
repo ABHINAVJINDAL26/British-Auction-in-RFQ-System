@@ -3,7 +3,7 @@ import { stompClient } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
 
 export function useAuctionSocket(rfqId) {
-  const { updateBids, addEvent, extendTime, setStatus } = useAuctionStore();
+  const { updateBids, addEvent, extendTime, setStatus, setAuctionResult } = useAuctionStore();
   const subscriptionRefs = useRef([]);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export function useAuctionSocket(rfqId) {
         const payload = JSON.parse(message.body);
         const bid = payload.bid;
         useAuctionStore.getState().addBid(bid);
-        
+
         addEvent({
           id: bid.id || Math.random().toString(),
           eventType: 'BID_SUBMITTED',
@@ -30,11 +30,14 @@ export function useAuctionSocket(rfqId) {
       const timeSub = stompClient.subscribe(`/topic/auction/${rfqId}/time`, (message) => {
         const payload = JSON.parse(message.body);
         extendTime(payload.newCloseTime);
-        
+
         addEvent({
           id: Math.random().toString(),
           eventType: 'TIME_EXTENDED',
-          description: `Extended by ${payload.extensionMinutes}m (${payload.reason})`,
+          description: `Auction extended by ${payload.extensionMinutes}m due to ${payload.reason}`,
+          oldCloseTime: payload.oldCloseTime,
+          newCloseTime: payload.newCloseTime,
+          triggeredBy: payload.reason,
           createdAt: new Date().toISOString()
         });
       });
@@ -44,15 +47,22 @@ export function useAuctionSocket(rfqId) {
       const statusSub = stompClient.subscribe(`/topic/auction/${rfqId}/status`, (message) => {
         const payload = JSON.parse(message.body);
         setStatus(payload.status);
-        
+
         addEvent({
           id: Math.random().toString(),
           eventType: 'STATUS_CHANGED',
-          description: `Auction status: ${payload.status}`,
+          description: `Auction status changed to ${payload.status}`,
           createdAt: new Date().toISOString()
         });
       });
       subscriptionRefs.current.push(statusSub);
+
+      // Subscribe to Auction Result (Winner Card trigger)
+      const resultSub = stompClient.subscribe(`/topic/auction/${rfqId}/result`, (message) => {
+        const payload = JSON.parse(message.body);
+        setAuctionResult(payload);
+      });
+      subscriptionRefs.current.push(resultSub);
     };
 
     if (!stompClient.active) {
@@ -63,13 +73,9 @@ export function useAuctionSocket(rfqId) {
     }
 
     return () => {
-      // Unsubscribe on cleanup
       subscriptionRefs.current.forEach(sub => sub.unsubscribe());
       subscriptionRefs.current = [];
-      
-      // If no more subscriptions exist globally, we could deactivate, 
-      // but typically STOMP client stays active or we deactivate it if leaving auction pages entirely.
       stompClient.deactivate();
     };
-  }, [rfqId, updateBids, addEvent, extendTime, setStatus]);
+  }, [rfqId, updateBids, addEvent, extendTime, setStatus, setAuctionResult]);
 }

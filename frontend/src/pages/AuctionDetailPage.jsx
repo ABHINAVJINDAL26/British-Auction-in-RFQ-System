@@ -4,6 +4,7 @@ import api from '../lib/api';
 import useAuctionStore from '../store/auctionStore';
 import { useAuctionSocket } from '../hooks/useAuctionSocket';
 import CountdownTimer from '../components/auction/CountdownTimer';
+import WinnerCard from '../components/auction/WinnerCard';
 import { Trophy, Clock, Activity, ArrowLeft, Send } from 'lucide-react';
 
 function formatDateTime(value) {
@@ -49,7 +50,7 @@ function formatRemainingTime(target) {
 
 const AuctionDetailPage = () => {
   const { id } = useParams();
-  const { currentRfq, setCurrentRfq, events, bids, user, logout } = useAuctionStore();
+  const { currentRfq, setCurrentRfq, events, bids, user, logout, auctionResult } = useAuctionStore();
   const [showBidForm, setShowBidForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -283,14 +284,17 @@ const AuctionDetailPage = () => {
       </div>
 
        {showBidForm && (
-        <BidSubmitModal 
-          rfqId={id} 
-          onClose={() => setShowBidForm(false)} 
+        <BidSubmitModal
+          rfqId={id}
+          onClose={() => setShowBidForm(false)}
           onSuccess={() => {
             setShowBidForm(false);
           }}
         />
       )}
+
+      {/* Winner Card - auto-shown on auction close via WebSocket */}
+      <WinnerCard />
     </div>
   );
 };

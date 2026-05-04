@@ -7,6 +7,7 @@ const useAuctionStore = create((set) => ({
   currentRfq: null,
   events: [],
   bids: [],
+  auctionResult: null, // Winner Card data
 
   setAuth: (user, token) => {
     sessionStorage.setItem('user', JSON.stringify(user));
@@ -20,53 +21,48 @@ const useAuctionStore = create((set) => ({
     sessionStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    set({ user: null, token: null, rfqs: [], currentRfq: null, events: [], bids: [] });
-    window.location.href = '/login'; // Force full refresh for clean slate
+    set({ user: null, token: null, rfqs: [], currentRfq: null, events: [], bids: [], auctionResult: null });
+    window.location.href = '/login';
   },
-  
+
   setRfqs: (rfqs) => set({ rfqs }),
   setCurrentRfq: (rfq) => set({ currentRfq: rfq, bids: rfq?.bids || [], events: rfq?.events || [] }),
-  
+
   updateBids: (newBids) => set((state) => ({
     bids: newBids,
     currentRfq: state.currentRfq ? { ...state.currentRfq, bids: newBids } : null
   })),
   addBid: (bid) => set((state) => {
-    // 1. Update standalone bids array
-    // Safely extract supplier ID from nested object or direct property
     const sId = bid.supplier?.id || bid.supplierId;
-    
-    // Filter out any existing bid from the same supplier for the same RFQ to replace it
     const otherBids = state.bids.filter(b => {
       const existingId = b.supplier?.id || b.supplierId;
       return existingId !== sId;
     });
-    
     const updatedBids = [...otherBids, bid].sort((a, b) => a.totalCharges - b.totalCharges);
-    
-    // 2. Also update currentRfq.bids if it exists
     const updatedRfq = state.currentRfq ? {
       ...state.currentRfq,
       bids: updatedBids
     } : null;
-
     return { bids: updatedBids, currentRfq: updatedRfq };
   }),
   addEvent: (event) => set((state) => ({ events: [event, ...state.events] })),
-  
+
   extendTime: (newCloseTime) => set((state) => {
     if (!state.currentRfq) return state;
     return {
       currentRfq: { ...state.currentRfq, bidCloseTime: newCloseTime }
     };
   }),
-  
+
   setStatus: (status) => set((state) => {
     if (!state.currentRfq) return state;
     return {
       currentRfq: { ...state.currentRfq, status }
     };
   }),
+
+  setAuctionResult: (result) => set({ auctionResult: result }),
+  clearAuctionResult: () => set({ auctionResult: null }),
 }));
 
 export default useAuctionStore;
