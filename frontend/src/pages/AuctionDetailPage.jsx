@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../lib/api';
 import useAuctionStore from '../store/auctionStore';
@@ -34,15 +34,22 @@ function formatTimeIST(value) {
   });
 }
 
-function formatRemainingTime(target) {
-  const diff = new Date(target) - new Date();
-  if (diff <= 0) return 'HARD CAP REACHED';
+function getHardCapProgress(bidStartTime, forcedCloseTime) {
+  if (!bidStartTime || !forcedCloseTime) return 0;
+  const start = new Date(bidStartTime).getTime();
+  const end = new Date(forcedCloseTime).getTime();
+  const now = Date.now();
+  if (end <= start) return 100;
+  return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+}
 
+function formatRemainingTime(target) {
+  const diff = new Date(target) - Date.now();
+  if (diff <= 0) return 'HARD CAP REACHED';
   const totalMinutes = Math.floor(diff / 60000);
   const days = Math.floor(totalMinutes / (24 * 60));
   const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
   const minutes = totalMinutes % 60;
-
   if (days > 0) return `${days}d ${hours}h ${minutes}m to Forced Close`;
   if (hours > 0) return `${hours}h ${minutes}m to Forced Close`;
   return `${minutes}m to Forced Close`;
@@ -50,12 +57,16 @@ function formatRemainingTime(target) {
 
 const AuctionDetailPage = () => {
   const { id } = useParams();
-  const { currentRfq, setCurrentRfq, events, bids, user, logout, auctionResult } = useAuctionStore();
+  const { currentRfq, setCurrentRfq, events, bids, user, logout, auctionResult, setAuctionResult } = useAuctionStore();
   const [showBidForm, setShowBidForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Live tick every second for progress bar and remaining time
+  const [, setTick] = useState(0);
+  const prevStatusRef = useRef(null);
 
   useAuctionSocket(id);
 
+  // Initial fetch
   useEffect(() => {
     const fetchRfq = async () => {
       try {
@@ -70,28 +81,74 @@ const AuctionDetailPage = () => {
     fetchRfq();
   }, [id, setCurrentRfq]);
 
-  // Fallback polling: keeps status/timer aligned even if a socket event is missed.
+  // Fallback polling every 5s (primary source is WebSocket, this is safety net)
   useEffect(() => {
     if (!id) return;
-
     const intervalId = setInterval(async () => {
       try {
         const res = await api.get(`/rfqs/${id}`);
         setCurrentRfq(res.data);
-      } catch (err) {
-        // Silent fallback; primary channel is WebSocket.
-      }
-    }, 10000);
-
+      } catch (err) { /* silent */ }
+    }, 5000);
     return () => clearInterval(intervalId);
   }, [id, setCurrentRfq]);
 
-  if (loading || !currentRfq) return <div className="p-8 text-center text-text-muted">Loading auction data...</div>;
+  // Live tick every second — keeps progress bar and remaining time perfectly in sync
+  useEffect(() => {
+    const tickInterval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(tickInterval);
+  }, []);
+
+  // Winner Card fallback: if polling detects CLOSED/FORCE_CLOSED and no result yet, build it
+  useEffect(() => {
+    if (!currentRfq) return;
+    const isClosed = currentRfq.status === 'CLOSED' || currentRfq.status === 'FORCE_CLOSED';
+    const wasOpen = prevStatusRef.current === 'ACTIVE' || prevStatusRef.current === 'DRAFT';
+
+    if (isClosed && !auctionResult && bids && bids.length >= 0) {
+      // Build a local result from available bids (fallback when WS event was missed)
+      const rankings = bids.map((b, i) => ({
+        rank: i + 1,
+        supplierId: b.supplier?.id || b.supplierId,
+        supplierName: b.supplier?.name || 'Unknown',
+        supplierCompany: b.supplier?.company || '',
+        carrierName: b.carrierName,
+        totalCharges: b.totalCharges,
+        freightCharges: b.freightCharges,
+        originCharges: b.originCharges,
+        destinationCharges: b.destinationCharges,
+        transitTime: b.transitTime,
+        quoteValidity: b.quoteValidity,
+        bidId: b.id,
+      }));
+      setAuctionResult({
+        rfqId: currentRfq.id,
+        rfqName: currentRfq.name,
+        referenceId: currentRfq.referenceId,
+        closeType: currentRfq.status,
+        closedAt: new Date().toISOString(),
+        extensionCount: currentRfq.events?.filter(e => e.eventType === 'TIME_EXTENDED').length || 0,
+        totalBids: bids.length,
+        rankings,
+        winner: rankings.length > 0 ? rankings[0] : null,
+      });
+    }
+
+    prevStatusRef.current = currentRfq.status;
+  }, [currentRfq?.status, auctionResult, bids, setAuctionResult]);
+
+  if (loading || !currentRfq) return (
+    <div className="p-8 text-center text-text-muted flex items-center justify-center min-h-screen">
+      <div className="animate-pulse">Loading auction data...</div>
+    </div>
+  );
 
   const isDraft = currentRfq.status === 'DRAFT';
   const isActive = currentRfq.status === 'ACTIVE';
+  const isClosed = currentRfq.status === 'CLOSED' || currentRfq.status === 'FORCE_CLOSED';
   const timerTarget = isDraft ? currentRfq.bidStartTime : currentRfq.bidCloseTime;
-  const timerLabel = isDraft ? 'STARTS IN' : 'CLOSES IN';
+  const timerLabel = isDraft ? 'STARTS IN' : isClosed ? 'CLOSED' : 'CLOSES IN';
+
   const statusBadgeClass =
     currentRfq.status === 'ACTIVE'
       ? 'bg-accent-green/20 text-accent-green border border-accent-green/30'
@@ -99,10 +156,15 @@ const AuctionDetailPage = () => {
       ? 'bg-accent-amber/20 text-accent-amber border border-accent-amber/30'
       : 'bg-accent-red/20 text-accent-red border border-accent-red/30';
 
+  const hardCapPct = getHardCapProgress(currentRfq.bidStartTime, currentRfq.forcedCloseTime);
+  const barColor = hardCapPct > 90
+    ? 'bg-accent-red shadow-[0_0_10px_rgba(239,68,68,0.5)]'
+    : hardCapPct > 70 ? 'bg-accent-amber' : 'bg-accent-blue';
+
   let bidButtonLabel = 'Bidding Restricted to Suppliers';
   if (user?.role === 'SUPPLIER') {
     if (isDraft) bidButtonLabel = 'Auction Not Started Yet';
-    else if (!isActive) bidButtonLabel = 'Auction Closed';
+    else if (isClosed) bidButtonLabel = 'Auction Closed';
     else bidButtonLabel = 'Submit New Bid';
   }
 
@@ -120,8 +182,8 @@ const AuctionDetailPage = () => {
               <p className="text-white font-bold leading-none mb-1 text-sm sm:text-base">{user?.name}</p>
               <p className="text-text-muted text-[8px] sm:text-[10px] uppercase font-black tracking-widest">{user?.role} • {user?.company}</p>
            </div>
-           <button 
-            onClick={logout} 
+           <button
+            onClick={logout}
             className="bg-bg-elevated hover:bg-bg-primary border border-white/5 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-widest hover:border-accent-red/30 hover:text-accent-red transition-all duration-300 active:scale-95 whitespace-nowrap"
           >
             Logout
@@ -136,8 +198,9 @@ const AuctionDetailPage = () => {
              <h2 className="text-xl font-bold flex items-center">
                <Trophy className="w-5 h-5 mr-2 text-accent-green" /> Live Rankings
              </h2>
-             <span className="text-xs text-text-muted font-mono uppercase tracking-widest">
-                Real-time Sync Active
+             <span className="text-xs font-mono uppercase tracking-widest flex items-center gap-2">
+               <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse inline-block" />
+               Real-time Sync Active
              </span>
           </div>
           <div className="overflow-x-auto">
@@ -157,27 +220,20 @@ const AuctionDetailPage = () => {
               <tbody className="divide-y divide-border-color">
                 {bids.map((bid, index) => (
                    <tr key={bid.id} className={`${index === 0 ? 'bg-accent-green/10 border-l-4 border-l-accent-green' : ''} hover:bg-bg-elevated/50 transition-colors animate-slide-right`} style={{ animationDelay: `${index * 50}ms` }}>
-                      <td className="px-6 py-4 font-mono font-bold text-lg flex items-center">
+                      <td className="px-6 py-4 font-mono font-bold text-lg">
                         {index === 0 ? (
-                          <>
-                            <span className="mr-2">🥇</span>
-                            <span className="text-accent-green">L1</span>
-                          </>
+                          <><span className="mr-1">🥇</span><span className="text-accent-green">L1</span></>
                         ) : index === 1 ? '🥈 L2' : index === 2 ? '🥉 L3' : `L${index + 1}`}
                       </td>
                       <td className="px-6 py-4 font-semibold">
                         {bid.carrierName || bid.supplier?.company || 'Supplier'}
-                        {bid.supplierId === user?.id && <span className="ml-2 text-[10px] bg-accent-blue/20 text-accent-blue px-2 py-0.5 rounded uppercase font-black">You</span>}
+                        {(bid.supplier?.id || bid.supplierId) === user?.id && (
+                          <span className="ml-2 text-[10px] bg-accent-blue/20 text-accent-blue px-2 py-0.5 rounded uppercase font-black">You</span>
+                        )}
                       </td>
-                      <td className="px-6 py-4 font-mono text-text-primary">
-                        ₹{new Intl.NumberFormat('en-IN').format(bid.freightCharges || 0)}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-text-primary">
-                        ₹{new Intl.NumberFormat('en-IN').format(bid.originCharges || 0)}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-text-primary">
-                        ₹{new Intl.NumberFormat('en-IN').format(bid.destinationCharges || 0)}
-                      </td>
+                      <td className="px-6 py-4 font-mono text-text-primary">₹{new Intl.NumberFormat('en-IN').format(bid.freightCharges || 0)}</td>
+                      <td className="px-6 py-4 font-mono text-text-primary">₹{new Intl.NumberFormat('en-IN').format(bid.originCharges || 0)}</td>
+                      <td className="px-6 py-4 font-mono text-text-primary">₹{new Intl.NumberFormat('en-IN').format(bid.destinationCharges || 0)}</td>
                       <td className={`px-6 py-4 font-mono font-bold ${index === 0 ? 'text-accent-green' : 'text-text-primary'}`}>
                         ₹{new Intl.NumberFormat('en-IN').format(bid.totalCharges)}
                       </td>
@@ -197,7 +253,7 @@ const AuctionDetailPage = () => {
           </div>
         </div>
 
-        {/* Center Panel - Control Center */}
+        {/* Right Panel - Control Center */}
         <div className="col-span-1 lg:col-span-5 flex flex-col gap-6">
            <div className="bg-bg-card border border-border-color rounded-xl p-8 flex flex-col items-center text-center">
               <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest mb-4 ${statusBadgeClass}`}>
@@ -205,12 +261,16 @@ const AuctionDetailPage = () => {
               </span>
               <h1 className="text-2xl font-bold mb-2">{currentRfq.name}</h1>
               <p className="text-text-muted mb-8 text-sm">Ref: {currentRfq.referenceId}</p>
-              
+
               <div className="mb-10 w-full">
                  <p className="text-text-muted text-sm uppercase font-black tracking-widest mb-2 flex items-center justify-center">
                    <Clock className="w-4 h-4 mr-2" /> {timerLabel}
                  </p>
-                 <CountdownTimer targetDate={timerTarget} />
+                 {isClosed ? (
+                   <div className="font-mono text-4xl font-bold text-accent-red">00:00:00</div>
+                 ) : (
+                   <CountdownTimer targetDate={timerTarget} />
+                 )}
                  {isDraft && (
                    <p className="mt-3 text-xs text-accent-amber font-semibold">
                      Bidding opens at {formatDateTime(currentRfq.bidStartTime)}
@@ -218,20 +278,12 @@ const AuctionDetailPage = () => {
                  )}
               </div>
 
+              {/* Hard Cap Progress Bar — live ticking every second */}
               <div className="w-full bg-bg-elevated h-2 rounded-full mb-2 overflow-hidden relative border border-white/5">
-                 <div 
-                  className={`absolute left-0 top-0 h-full transition-all duration-1000 ${
-                    (() => {
-                      const totalTerm = new Date(currentRfq.forcedCloseTime) - new Date(currentRfq.bidStartTime);
-                      const elapsed = new Date() - new Date(currentRfq.bidStartTime);
-                      const pct = Math.min(100, Math.max(0, (elapsed / totalTerm) * 100));
-                      return pct > 90 ? 'bg-accent-red shadow-[0_0_10px_rgba(239,68,68,0.5)]' : pct > 70 ? 'bg-accent-amber' : 'bg-accent-blue';
-                    })()
-                  }`} 
-                  style={{ 
-                    width: `${Math.min(100, Math.max(0, ((new Date() - new Date(currentRfq.bidStartTime)) / (new Date(currentRfq.forcedCloseTime) - new Date(currentRfq.bidStartTime))) * 100))}%` 
-                  }}
-                ></div>
+                 <div
+                  className={`absolute left-0 top-0 h-full transition-none ${barColor}`}
+                  style={{ width: `${hardCapPct}%` }}
+                />
               </div>
               <div className="text-[10px] text-text-muted uppercase font-bold tracking-widest mb-10 w-full flex flex-col sm:flex-row justify-between gap-2">
                 <span>Hard Cap: {formatDateTime(currentRfq.forcedCloseTime)}</span>
@@ -240,12 +292,12 @@ const AuctionDetailPage = () => {
                 </span>
               </div>
 
-              <button 
+              <button
                 onClick={() => setShowBidForm(true)}
                 disabled={!isActive || user?.role !== 'SUPPLIER'}
                 className="w-full py-4 bg-accent-blue hover:bg-opacity-90 disabled:bg-text-muted disabled:bg-opacity-20 text-white rounded-lg font-bold text-lg transition-all flex items-center justify-center group"
               >
-                <Send className="w-5 h-5 mr-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> 
+                <Send className="w-5 h-5 mr-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 {bidButtonLabel}
               </button>
            </div>
@@ -257,21 +309,22 @@ const AuctionDetailPage = () => {
               </div>
               <div className="flex-1 overflow-y-auto max-h-[400px] p-6 space-y-4 font-sans text-sm">
                  {events.map((event) => (
-                    <div key={event.id} className="flex gap-4 items-start animate-fade-in group">
+                    <div key={event.id || Math.random()} className="flex gap-4 items-start animate-fade-in group">
                        <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                         event.eventType === 'BID_SUBMITTED' ? 'bg-accent-green' : 
+                         event.eventType === 'BID_SUBMITTED' ? 'bg-accent-green' :
                          event.eventType === 'TIME_EXTENDED' ? 'bg-accent-amber' : 'bg-accent-blue'
                        }`} />
                        <div>
                           <p className="text-text-primary group-hover:text-white transition-colors">{event.description}</p>
                           {event.eventType === 'TIME_EXTENDED' && (
                            <div className="mt-2 text-[11px] text-text-muted leading-5">
-                            <div>Reason: {event.reason || event.triggeredBy || 'Unknown'}</div>
                             <div>Old close: {formatDateTime(event.oldCloseTime)}</div>
                             <div>New close: {formatDateTime(event.newCloseTime)}</div>
                            </div>
                           )}
-                          <span className="text-[10px] text-text-muted font-mono uppercase">{new Date(event.createdAt).toLocaleTimeString()}</span>
+                          <span className="text-[10px] text-text-muted font-mono uppercase">
+                            {new Date(event.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                          </span>
                        </div>
                     </div>
                  ))}
@@ -283,17 +336,15 @@ const AuctionDetailPage = () => {
         </div>
       </div>
 
-       {showBidForm && (
+      {showBidForm && (
         <BidSubmitModal
           rfqId={id}
           onClose={() => setShowBidForm(false)}
-          onSuccess={() => {
-            setShowBidForm(false);
-          }}
+          onSuccess={() => setShowBidForm(false)}
         />
       )}
 
-      {/* Winner Card - auto-shown on auction close via WebSocket */}
+      {/* Winner Card — auto-shown via WebSocket or polling fallback */}
       <WinnerCard />
     </div>
   );
@@ -310,14 +361,18 @@ const BidSubmitModal = ({ rfqId, onClose, onSuccess }) => {
      quoteValidity: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
      notes: ''
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await api.post(`/rfqs/${rfqId}/bids`, formData);
       onSuccess();
     } catch (err) {
       alert('Error submitting bid: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -330,23 +385,23 @@ const BidSubmitModal = ({ rfqId, onClose, onSuccess }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
              <div>
                 <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Carrier Name</label>
-                <input required className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-3 focus:border-accent-blue transition-all outline-none text-white font-bold" 
+                <input required className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-3 focus:border-accent-blue transition-all outline-none text-white font-bold"
                   value={formData.carrierName} onChange={e => setFormData({...formData, carrierName: e.target.value})} placeholder="e.g. Evergreen Marine" />
              </div>
              <div className="grid grid-cols-3 gap-4">
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Freight</label>
-                   <input required type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono" 
+                   <input required type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono"
                     value={formData.freightCharges} onChange={e => setFormData({...formData, freightCharges: e.target.value})} placeholder="₹" />
                 </div>
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Origin</label>
-                   <input type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono" 
+                   <input type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono"
                     value={formData.originCharges} onChange={e => setFormData({...formData, originCharges: e.target.value})} placeholder="₹" />
                 </div>
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Dest.</label>
-                   <input type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono" 
+                   <input type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-mono"
                     value={formData.destinationCharges} onChange={e => setFormData({...formData, destinationCharges: e.target.value})} placeholder="₹" />
                 </div>
              </div>
@@ -361,20 +416,20 @@ const BidSubmitModal = ({ rfqId, onClose, onSuccess }) => {
              <div className="grid grid-cols-2 gap-4">
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Transit (Days)</label>
-                   <input required type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-bold" 
+                   <input required type="number" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-bold"
                     value={formData.transitTime} onChange={e => setFormData({...formData, transitTime: e.target.value})} />
                 </div>
                 <div>
                    <label className="block text-[10px] uppercase font-black text-text-muted tracking-widest mb-1">Validity</label>
-                   <input required type="date" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-bold" 
+                   <input required type="date" className="w-full bg-bg-elevated border border-border-color rounded-lg px-4 py-2.5 focus:border-accent-blue transition-all outline-none text-white font-bold"
                     value={formData.quoteValidity} onChange={e => setFormData({...formData, quoteValidity: e.target.value})} />
                 </div>
              </div>
 
              <div className="flex gap-4 pt-6">
                 <button type="button" onClick={onClose} className="flex-1 py-3 text-text-muted hover:text-white font-bold transition-all active:scale-95">Cancel</button>
-                <button type="submit" className="flex-[2] py-4 bg-accent-blue hover:bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 transition-all hover:-translate-y-0.5 active:scale-95">
-                   Confirm and Submit Bid
+                <button type="submit" disabled={submitting} className="flex-[2] py-4 bg-accent-blue hover:bg-blue-600 disabled:opacity-60 text-white rounded-xl font-bold shadow-lg shadow-accent-blue/20 hover:shadow-accent-blue/40 transition-all hover:-translate-y-0.5 active:scale-95">
+                   {submitting ? 'Submitting...' : 'Confirm and Submit Bid'}
                 </button>
              </div>
           </form>
