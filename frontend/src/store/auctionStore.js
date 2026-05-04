@@ -33,8 +33,15 @@ const useAuctionStore = create((set) => ({
   })),
   addBid: (bid) => set((state) => {
     // 1. Update standalone bids array
+    // Safely extract supplier ID from nested object or direct property
+    const sId = bid.supplier?.id || bid.supplierId;
+    
     // Filter out any existing bid from the same supplier for the same RFQ to replace it
-    const otherBids = state.bids.filter(b => b.supplierId !== bid.supplierId);
+    const otherBids = state.bids.filter(b => {
+      const existingId = b.supplier?.id || b.supplierId;
+      return existingId !== sId;
+    });
+    
     const updatedBids = [...otherBids, bid].sort((a, b) => a.totalCharges - b.totalCharges);
     
     // 2. Also update currentRfq.bids if it exists

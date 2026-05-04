@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -56,6 +57,8 @@ public class Rfq {
 
     @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("rfq")
+    @SQLRestriction("is_latest = true")
+    @OrderBy("totalCharges ASC")
     private List<Bid> bids;
 
     @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL)
