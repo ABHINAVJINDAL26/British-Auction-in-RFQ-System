@@ -293,11 +293,13 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
         return;
       }
 
+      const formatForJava = (val) => val.length === 16 ? `${val}:00` : val.slice(0, 19);
+
       await api.post('/rfqs', {
         ...formData,
-        bidStartTime: new Date(formData.bidStartTime).toISOString(),
-        bidCloseTime: new Date(formData.bidCloseTime).toISOString(),
-        forcedCloseTime: new Date(formData.forcedCloseTime).toISOString(),
+        bidStartTime: formatForJava(formData.bidStartTime),
+        bidCloseTime: formatForJava(formData.bidCloseTime),
+        forcedCloseTime: formatForJava(formData.forcedCloseTime),
         auctionConfig: {
           triggerWindowX: parseInt(formData.triggerWindowX),
           extensionDurationY: parseInt(formData.extensionDurationY),
