@@ -63,6 +63,7 @@ public class Rfq {
 
     @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("rfq")
+    @OrderBy("createdAt DESC")
     private List<AuctionEvent> events;
 
     @Column(nullable = false, updatable = false)
