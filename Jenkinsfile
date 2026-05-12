@@ -1,27 +1,46 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'REGISTRY_OWNER', defaultValue: 'your-username', description: 'GHCR owner/user/org (lowercase)')
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker image tag')
+    }
+
     tools {
         maven 'Maven-3.9'
         jdk 'JDK-17'
     }
 
     environment {
-        GHCR_REPO = 'ghcr.io/your-username/british-auction'
         GITHUB_TOKEN = credentials('github-token')
     }
 
     stages {
+        stage('Init') {
+            steps {
+                script {
+                    env.GHCR_REPO = "ghcr.io/${params.REGISTRY_OWNER}/gocomet"
+                }
+                echo "GHCR_REPO=${env.GHCR_REPO}"
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-username/british-auction-java'
+                checkout scm
             }
         }
 
         stage('Maven Build') {
             steps {
                 dir('backend') {
-                    sh 'mvn clean package -DskipTests'
+                    script {
+                        if (isUnix()) {
+                            sh 'mvn clean package -DskipTests'
+                        } else {
+                            bat 'mvn clean package -DskipTests'
+                        }
+                    }
                 }
             }
         }
@@ -29,36 +48,63 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('backend') {
-                    sh 'mvn test'
+                    script {
+                        if (isUnix()) {
+                            sh 'mvn test'
+                        } else {
+                            bat 'mvn test'
+                        }
+                    }
                 }
             }
             post {
                 always {
-                    junit 'backend/target/surefire-reports/*.xml'
+                    junit testResults: 'backend/target/surefire-reports/*.xml', allowEmptyResults: true
                 }
             }
         }
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t ${GHCR_REPO}/backend:latest ./backend'
-                sh 'docker build -t ${GHCR_REPO}/frontend:latest ./frontend'
+                script {
+                    if (isUnix()) {
+                        sh "docker build -t ${GHCR_REPO}/backend:${params.IMAGE_TAG} ./backend"
+                        sh "docker build -t ${GHCR_REPO}/frontend:${params.IMAGE_TAG} ./frontend"
+                    } else {
+                        bat "docker build -t ${GHCR_REPO}/backend:${params.IMAGE_TAG} ./backend"
+                        bat "docker build -t ${GHCR_REPO}/frontend:${params.IMAGE_TAG} ./frontend"
+                    }
+                }
             }
         }
 
         stage('Push to GHCR') {
             steps {
-                sh 'echo $GITHUB_TOKEN | docker login ghcr.io -u your-username --password-stdin'
-                sh 'docker push ${GHCR_REPO}/backend:latest'
-                sh 'docker push ${GHCR_REPO}/frontend:latest'
+                script {
+                    if (isUnix()) {
+                        sh "echo ${GITHUB_TOKEN} | docker login ghcr.io -u ${params.REGISTRY_OWNER} --password-stdin"
+                        sh "docker push ${GHCR_REPO}/backend:${params.IMAGE_TAG}"
+                        sh "docker push ${GHCR_REPO}/frontend:${params.IMAGE_TAG}"
+                    } else {
+                        bat "echo %GITHUB_TOKEN% | docker login ghcr.io -u ${params.REGISTRY_OWNER} --password-stdin"
+                        bat "docker push ${GHCR_REPO}/backend:${params.IMAGE_TAG}"
+                        bat "docker push ${GHCR_REPO}/frontend:${params.IMAGE_TAG}"
+                    }
+                }
             }
         }
 
         stage('Deploy with Docker Compose') {
             steps {
-                sh 'docker compose down'
-                sh 'docker compose pull'
-                sh 'docker compose up -d'
+                script {
+                    if (isUnix()) {
+                        sh 'docker compose down'
+                        sh 'docker compose up -d --build'
+                    } else {
+                        bat 'docker compose down'
+                        bat 'docker compose up -d --build'
+                    }
+                }
             }
         }
     }
