@@ -98,11 +98,11 @@ pipeline {
             steps {
                 script {
                     if (isUnix()) {
-                        sh 'docker compose down'
-                        sh 'docker compose up -d --build'
+                        sh '/usr/local/bin/docker-compose down'
+                        sh '/usr/local/bin/docker-compose up -d --build'
                     } else {
-                        bat 'docker compose down'
-                        bat 'docker compose up -d --build'
+                        bat 'docker-compose down'
+                        bat 'docker-compose up -d --build'
                     }
                 }
             }
