@@ -41,6 +41,9 @@ function App() {
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/auctions/:id" element={<ProtectedRoute><AuctionDetailPage /></ProtectedRoute>} />
         </Routes>
+
+        <footer className="text-center py-4 text-sm text-text-muted bg-bg-elevated/20 mt-6"> 
+        Demo build — pushed at {new Date().toLocaleString()} </footer>
       </div>
     </Router>
   );
