@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
-import { stompClient } from '../lib/socket';
 import useAuctionStore from '../store/auctionStore';
 import CountdownTimer from '../components/auction/CountdownTimer';
 
@@ -47,30 +46,10 @@ const AuctionListPage = () => {
 
   useEffect(() => {
     fetchRfqs();
-  }, [fetchRfqs]);
 
-  useEffect(() => {
-    const onConnect = () => {
-      stompClient.subscribe('/topic/rfq/created', () => {
-        fetchRfqs();
-      });
-      stompClient.subscribe('/topic/rfq/status', () => {
-        fetchRfqs();
-      });
-    };
+    const intervalId = setInterval(fetchRfqs, 8000);
 
-    if (!stompClient.active) {
-      stompClient.onConnect = onConnect;
-      stompClient.activate();
-    } else {
-      onConnect();
-    }
-
-    return () => {
-      // Deactivating STOMP will clear subscriptions for this component's lifecycle
-      // if it's the main connection manager, otherwise we would track subscriptions.
-      // Since it's a global client, we won't deactivate it here to avoid breaking other components.
-    };
+    return () => clearInterval(intervalId);
   }, [fetchRfqs]);
 
   const handleCreateSuccess = () => {
@@ -80,6 +59,18 @@ const AuctionListPage = () => {
 
   return (
     <div className="container py-8">
+      <div className="mb-8 rounded-2xl border border-accent-blue/30 bg-gradient-to-r from-accent-blue/15 via-bg-card to-accent-green/15 p-4 md:p-5 shadow-lg shadow-accent-blue/10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-accent-blue font-black">Live Demo Build</p>
+            <h2 className="mt-1 text-xl md:text-2xl font-bold text-text-primary">Pipeline-triggered auction board is live</h2>
+          </div>
+          <p className="text-sm text-text-muted max-w-xl md:text-right">
+            This screen refreshes automatically so new commits and deployments show up without a manual reload.
+          </p>
+        </div>
+      </div>
+
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-text-primary">
@@ -293,13 +284,11 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
         return;
       }
 
-      const formatForJava = (val) => val.length === 16 ? `${val}:00` : val.slice(0, 19);
-
       await api.post('/rfqs', {
         ...formData,
-        bidStartTime: formatForJava(formData.bidStartTime),
-        bidCloseTime: formatForJava(formData.bidCloseTime),
-        forcedCloseTime: formatForJava(formData.forcedCloseTime),
+        bidStartTime: new Date(formData.bidStartTime).toISOString(),
+        bidCloseTime: new Date(formData.bidCloseTime).toISOString(),
+        forcedCloseTime: new Date(formData.forcedCloseTime).toISOString(),
         auctionConfig: {
           triggerWindowX: parseInt(formData.triggerWindowX),
           extensionDurationY: parseInt(formData.extensionDurationY),

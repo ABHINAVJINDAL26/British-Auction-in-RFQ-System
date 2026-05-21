@@ -98,11 +98,11 @@ pipeline {
             steps {
                 script {
                     if (isUnix()) {
-                        sh '/usr/local/bin/docker-compose down'
-                        sh '/usr/local/bin/docker-compose up -d --build'
+                        sh 'COMPOSE_PROJECT_NAME=gocomet /usr/local/bin/docker-compose down'
+                        sh 'COMPOSE_PROJECT_NAME=gocomet /usr/local/bin/docker-compose up -d --build'
                     } else {
-                        bat 'docker-compose down'
-                        bat 'docker-compose up -d --build'
+                        bat 'set COMPOSE_PROJECT_NAME=gocomet && docker-compose down'
+                        bat 'set COMPOSE_PROJECT_NAME=gocomet && docker-compose up -d --build'
                     }
                 }
             }
