@@ -40,7 +40,8 @@ public class RfqValidator {
             throw new IllegalArgumentException(fieldName + " is required");
         }
         try {
-            return LocalDateTime.parse(dateStr);
+            String normalized = dateStr.length() == 16 ? dateStr + ":00" : dateStr;
+            return LocalDateTime.parse(normalized);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid date format for " + fieldName + ". Expected format: yyyy-MM-ddTHH:mm:ss");
         }

@@ -56,10 +56,10 @@ public class RfqController {
 
         User buyer = userRepository.findById(userId).orElseThrow();
 
-        LocalDateTime pickup = LocalDateTime.parse(request.getPickupDate() + "T00:00:00");
-        LocalDateTime start = LocalDateTime.parse(request.getBidStartTime());
-        LocalDateTime close = LocalDateTime.parse(request.getBidCloseTime());
-        LocalDateTime forced = LocalDateTime.parse(request.getForcedCloseTime());
+        LocalDateTime pickup = parseDateTime(request.getPickupDate() + "T00:00:00");
+        LocalDateTime start = parseDateTime(request.getBidStartTime());
+        LocalDateTime close = parseDateTime(request.getBidCloseTime());
+        LocalDateTime forced = parseDateTime(request.getForcedCloseTime());
 
         Rfq rfq = Rfq.builder()
                 .referenceId(request.getReferenceId())
@@ -106,5 +106,14 @@ public class RfqController {
             private Integer extensionDurationY;
             private String triggerType;
         }
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("Date/time value is required");
+        }
+
+        String normalized = value.length() == 16 ? value + ":00" : value;
+        return LocalDateTime.parse(normalized);
     }
 }
