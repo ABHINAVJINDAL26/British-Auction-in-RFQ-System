@@ -22,7 +22,13 @@ const SignupPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post('/auth/signup', formData);
+      const res = await api.post('/auth/signup', {
+        ...formData,
+        email: formData.email.trim().toLowerCase(),
+        name: formData.name.trim(),
+        company: formData.company.trim(),
+        carrierName: formData.carrierName?.trim() || ''
+      });
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {

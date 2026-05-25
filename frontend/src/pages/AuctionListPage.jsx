@@ -286,9 +286,9 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
 
       await api.post('/rfqs', {
         ...formData,
-        bidStartTime: new Date(formData.bidStartTime).toISOString(),
-        bidCloseTime: new Date(formData.bidCloseTime).toISOString(),
-        forcedCloseTime: new Date(formData.forcedCloseTime).toISOString(),
+        bidStartTime: toBackendDateTimeValue(formData.bidStartTime),
+        bidCloseTime: toBackendDateTimeValue(formData.bidCloseTime),
+        forcedCloseTime: toBackendDateTimeValue(formData.forcedCloseTime),
         auctionConfig: {
           triggerWindowX: parseInt(formData.triggerWindowX),
           extensionDurationY: parseInt(formData.extensionDurationY),
@@ -299,6 +299,11 @@ const CreateRfqModal = ({ onClose, onSuccess }) => {
     } catch (err) {
       alert('Error: ' + (err.response?.data?.error || err.message));
     }
+  };
+
+  const toBackendDateTimeValue = (value) => {
+    if (!value) return value;
+    return value.length === 16 ? `${value}:00` : value;
   };
 
   return (
