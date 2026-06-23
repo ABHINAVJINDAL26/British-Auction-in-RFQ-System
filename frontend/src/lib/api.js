@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-let baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+let baseUrl = configuredApiUrl || (isLocalhost ? 'http://localhost:8080/api' : '/api');
 
 // Robust URL formatting
 if (!baseUrl.endsWith('/api')) {
@@ -9,7 +12,7 @@ if (!baseUrl.endsWith('/api')) {
 
 const api = axios.create({
   baseURL: baseUrl,
-  timeout: 15000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use((config) => {

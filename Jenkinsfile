@@ -8,7 +8,7 @@ pipeline {
 
     tools {
         maven 'Maven-3.9'
-        jdk 'JDK-17'
+        jdk 'JDK-25'
     }
 
     environment {
@@ -98,11 +98,11 @@ pipeline {
             steps {
                 script {
                     if (isUnix()) {
-                        sh 'COMPOSE_PROJECT_NAME=gocomet /usr/local/bin/docker-compose down'
-                        sh 'COMPOSE_PROJECT_NAME=gocomet /usr/local/bin/docker-compose up -d --build'
+                        sh 'docker compose --project-name gocomet down'
+                        sh 'docker compose --project-name gocomet up -d --build'
                     } else {
-                        bat 'set COMPOSE_PROJECT_NAME=gocomet && docker-compose down'
-                        bat 'set COMPOSE_PROJECT_NAME=gocomet && docker-compose up -d --build'
+                        bat 'docker compose --project-name gocomet down'
+                        bat 'docker compose --project-name gocomet up -d --build'
                     }
                 }
             }
