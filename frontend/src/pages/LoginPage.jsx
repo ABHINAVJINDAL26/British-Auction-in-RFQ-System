@@ -13,6 +13,22 @@ const LoginPage = () => {
   const setAuth = useAuctionStore((state) => state.setAuth);
   const navigate = useNavigate();
 
+  const getErrorMessage = (err) => {
+    if (err.code === 'ECONNABORTED') {
+      return 'Server took too long to respond. Please try again.';
+    }
+
+    if (!err.response) {
+      return 'Unable to reach the server. Please check your connection and try again.';
+    }
+
+    if (err.response.status === 401) {
+      return 'Invalid email or password.';
+    }
+
+    return err.response?.data?.error || 'Login failed. Please try again.';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -25,13 +41,7 @@ const LoginPage = () => {
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {
-      if (err.code === 'ECONNABORTED') {
-        setError('Server response slow hai. Please 10-15 sec baad retry karein.');
-      } else if (!err.response) {
-        setError('Network issue. Internet ya backend server check karein.');
-      } else {
-        setError(err.response?.data?.error || 'Login failed');
-      }
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

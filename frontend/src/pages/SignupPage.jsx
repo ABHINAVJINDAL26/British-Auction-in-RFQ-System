@@ -18,8 +18,21 @@ const SignupPage = () => {
   const setAuth = useAuctionStore((state) => state.setAuth);
   const navigate = useNavigate();
 
+  const getErrorMessage = (err) => {
+    if (err.code === 'ECONNABORTED') {
+      return 'Server took too long to respond. Please try again.';
+    }
+
+    if (!err.response) {
+      return 'Unable to reach the server. Please check your connection and try again.';
+    }
+
+    return err.response?.data?.error || 'Signup failed. Please try again.';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
     try {
       const res = await api.post('/auth/signup', {
@@ -32,9 +45,9 @@ const SignupPage = () => {
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed');
+      setError(getErrorMessage(err));
     } finally {
-      setLoading(false); // Set loading to false after request completes
+      setLoading(false);
     }
   };
 
