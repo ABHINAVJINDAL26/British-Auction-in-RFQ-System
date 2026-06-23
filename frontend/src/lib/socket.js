@@ -1,7 +1,9 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client/dist/sockjs';
 
-let SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080';
+const configuredSocketUrl = import.meta.env.VITE_SOCKET_URL?.trim();
+const isDev = import.meta.env.DEV;
+let SOCKET_URL = configuredSocketUrl || (isDev ? 'http://localhost:8082' : window.location.origin);
 
 // Remove trailing slash if present
 if (SOCKET_URL.endsWith('/')) {

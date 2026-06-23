@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const isDev = import.meta.env.DEV;
 
-let baseUrl = configuredApiUrl || (isLocalhost ? 'http://localhost:8080/api' : '/api');
+let baseUrl = configuredApiUrl || (isDev ? 'http://localhost:8082/api' : '/api');
 
 // Robust URL formatting
 if (!baseUrl.endsWith('/api')) {

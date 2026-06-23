@@ -90,7 +90,9 @@ export function useAuctionSocket(rfqId) {
     }
 
     activeRfqId = rfqId;
-    const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || 'http://localhost:8080').replace(/\/$/, '');
+    const configuredSocketUrl = import.meta.env.VITE_SOCKET_URL?.trim();
+    const isDev = import.meta.env.DEV;
+    const SOCKET_URL = (configuredSocketUrl || (isDev ? 'http://localhost:8082' : window.location.origin)).replace(/\/$/, '');
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${SOCKET_URL}/ws`),
