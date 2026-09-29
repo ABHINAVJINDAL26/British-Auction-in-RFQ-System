@@ -13,7 +13,7 @@ if (!rawUrl.endsWith('/api')) {
 
 const api = axios.create({
   baseURL: rawUrl,
-  timeout: 30000,
+  timeout: 90000,
 });
 
 api.interceptors.request.use((config) => {

@@ -19,7 +19,7 @@ const LoginPage = () => {
     }
 
     if (err.code === 'ECONNABORTED') {
-      return 'Server took too long to respond. Please try again.';
+      return 'Server is taking long to respond. If backend is on a free host (Render/Railway), it may be waking up. Please try again in 30 seconds.';
     }
 
     if (!err.response) {
