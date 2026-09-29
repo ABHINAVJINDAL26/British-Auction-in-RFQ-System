@@ -14,6 +14,10 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   const getErrorMessage = (err) => {
+    if (err.message && err.message.includes('HTML response')) {
+      return 'Server error: Connected endpoint returned HTML instead of JSON. Please check backend API server URL.';
+    }
+
     if (err.code === 'ECONNABORTED') {
       return 'Server took too long to respond. Please try again.';
     }
@@ -26,7 +30,7 @@ const LoginPage = () => {
       return 'Invalid email or password.';
     }
 
-    return err.response?.data?.error || 'Login failed. Please try again.';
+    return err.response?.data?.error || err.message || 'Login failed. Please try again.';
   };
 
   const handleSubmit = async (e) => {
@@ -38,6 +42,11 @@ const LoginPage = () => {
         email: email.trim().toLowerCase(),
         password
       });
+
+      if (!res.data || typeof res.data !== 'object' || !res.data.token || !res.data.user) {
+        throw new Error('Received invalid auth response from server.');
+      }
+
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {

@@ -19,6 +19,10 @@ const SignupPage = () => {
   const navigate = useNavigate();
 
   const getErrorMessage = (err) => {
+    if (err.message && err.message.includes('HTML response')) {
+      return 'Server error: Connected endpoint returned HTML instead of JSON. Please check backend API server URL.';
+    }
+
     if (err.code === 'ECONNABORTED') {
       return 'Server took too long to respond. Please try again.';
     }
@@ -27,7 +31,7 @@ const SignupPage = () => {
       return 'Unable to reach the server. Please check your connection and try again.';
     }
 
-    return err.response?.data?.error || 'Signup failed. Please try again.';
+    return err.response?.data?.error || err.message || 'Signup failed. Please try again.';
   };
 
   const handleSubmit = async (e) => {
@@ -42,6 +46,11 @@ const SignupPage = () => {
         company: formData.company.trim(),
         carrierName: formData.carrierName?.trim() || ''
       });
+
+      if (!res.data || typeof res.data !== 'object' || !res.data.token || !res.data.user) {
+        throw new Error('Received invalid auth response from server.');
+      }
+
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err) {

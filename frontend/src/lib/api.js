@@ -3,15 +3,16 @@ import axios from 'axios';
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const isDev = import.meta.env.DEV;
 
-let baseUrl = configuredApiUrl || (isDev ? 'http://localhost:8082/api' : '/api');
+// Remove trailing slashes first
+let rawUrl = configuredApiUrl || (isDev ? 'http://localhost:8082/api' : '/api');
+rawUrl = rawUrl.replace(/\/+$/, '');
 
-// Robust URL formatting
-if (!baseUrl.endsWith('/api')) {
-  baseUrl = baseUrl.endsWith('/') ? baseUrl + 'api' : baseUrl + '/api';
+if (!rawUrl.endsWith('/api')) {
+  rawUrl += '/api';
 }
 
 const api = axios.create({
-  baseURL: baseUrl,
+  baseURL: rawUrl,
   timeout: 30000,
 });
 
@@ -24,7 +25,15 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check if live server returned HTML page (e.g. Vercel fallback) instead of JSON
+    if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE')) {
+      const error = new Error('Received HTML response instead of JSON. Backend API URL might be misconfigured.');
+      error.response = { status: 502, data: { error: 'Invalid API endpoint. Server returned HTML.' } };
+      return Promise.reject(error);
+    }
+    return response;
+  },
   (error) => {
     if (error?.response?.status === 401) {
       // Token missing/expired/stale for current backend; reset auth and force login.
