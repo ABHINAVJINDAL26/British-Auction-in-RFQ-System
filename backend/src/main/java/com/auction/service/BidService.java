@@ -49,7 +49,6 @@ public class BidService {
             b.setIsLatest(false);
             bidRepository.save(b);
         }
-
         // Get current L1
         List<Bid> currentRanks = bidRepository.findByRfqIdAndIsLatestTrueOrderByTotalChargesAsc(rfqId);
         String currentL1SupplierId = currentRanks.isEmpty() ? null : currentRanks.get(0).getSupplier().getId();
